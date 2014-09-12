@@ -122,7 +122,7 @@ htmlTable(dataWindowCount,
           rowlabel="",)
 ```
 
-```{r evaluateDataWindowSizePart1, comment="", fig.path="figure/"}
+```{r evaluateDataWindowSizePart1, comment=""}
 #------------------------------------------------------------------------
 #------------------------------------------------------------------------
 computeDataWindowSize <- function(dataWindow) {
@@ -151,7 +151,7 @@ summary(dataWindowSize$windowsize)
 summary(dataWindowSize[which(dataWindowSize$windowsize > 2),c("windowsize")])
 ```
 
-```{r evaluateDataWindowSizePart2, comment="", results='asis', fig.path="figure/"}
+```{r evaluateDataWindowSizePart2, comment="", results='asis'}
 dataWindow <- initializeDataWindowIndex(trainingData, 12)
 
 dataWindowSize = computeDataWindowSize(dataWindow)
@@ -175,4 +175,4 @@ htmlTable(dataWindowCount,
 [2]: http://stackoverflow.com/questions/4605206/drop-columns-r-data-frame
 [3]: http://stackoverflow.com/questions/5430338/remove-data-frame-row-names-when-using-xtable
 [4]: http://tex.stackexchange.com/questions/165329/controlling-formatting-options-for-xtable
-
+[5]: http://stackoverflow.com/questions/8446218/how-to-see-an-html-page-on-github-as-a-normal-rendered-html-page-to-see-preview
