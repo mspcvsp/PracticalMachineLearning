@@ -90,21 +90,35 @@ library(RColorBrewer)</code></pre>
     download.file(testDataURL, destfile = &quot;./Data/testData.csv&quot;)
 }
 
-trainingData &lt;- read.csv(file = &quot;./Data/trainingData.csv&quot;,
-                         header=TRUE,
-                         stringsAsFactors = FALSE)
+loadExerciseData &lt;- function(exerciseDataFile) {
+#------------------------------------------------------------------------
+#------------------------------------------------------------------------
+    exerciseData &lt;- read.csv(file = file.path(&quot;./Data&quot;,
+                                              exerciseDataFile),
+                             header=TRUE,
+                             stringsAsFactors = FALSE)
 
-colnames(trainingData) &lt;- tolower(colnames(trainingData))
-variableNames &lt;- colnames(trainingData)
+    colnames(exerciseData) &lt;- tolower(colnames(exerciseData))
+    variableNames &lt;- colnames(exerciseData)
 
-for (i in seq_len(length(variableNames))) {
-    variableNames[i] &lt;- gsub(&quot;_&quot;, &quot;&quot;, variableNames[i])
+    for (i in seq_len(length(variableNames))) {
+        variableNames[i] &lt;- gsub(&quot;_&quot;, &quot;&quot;, variableNames[i])
+    }
+    
+    colnames(exerciseData) &lt;- variableNames
+    
+    exerciseData$timestamp &lt;- exerciseData$rawtimestamppart1 + 
+                              exerciseData$rawtimestamppart2*1E-6
+    
+    exerciseData &lt;- 
+        exerciseData[,!colnames(exerciseData) %in% c(&quot;x&quot;,
+                                                     &quot;rawtimestamppart1&quot;,
+                                                     &quot;rawtimestamppart2&quot;)]
+
+    return(exerciseData)
 }
 
-colnames(trainingData) &lt;- variableNames
-
-trainingData$timestamp &lt;- trainingData$rawtimestamppart1 + 
-                          trainingData$rawtimestamppart2*1E-6</code></pre>
+trainingData &lt;- loadExerciseData(&quot;trainingData.csv&quot;)</code></pre>
 <pre class="r"><code>calculateMissingDataStatistics &lt;- function(trainingData) {
     variableNames &lt;- colnames(trainingData)
     
@@ -124,7 +138,7 @@ trainingData$timestamp &lt;- trainingData$rawtimestamppart1 +
 naData &lt;- calculateMissingDataStatistics(trainingData)
 summary(naData$nacount)</code></pre>
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    0.0     0.0     0.0    40.8    97.9    97.9 </code></pre>
+    0.0     0.0     0.0    41.5    97.9    97.9 </code></pre>
 <pre class="r"><code>naData &lt;- subset(naData, naData$nacount &gt; 0)
 naVariables &lt;- as.character(naData$variable)
 
@@ -395,14 +409,23 @@ E
 variableNames &lt;- colnames(trainingData)
 
 for (curClasse in names(dataWindow)) {
+    dataWindowNumber &lt;- 1
+    
     for (curDataWindowIdx in dataWindow[[curClasse]]) {
         curDataWindow &lt;- trainingData[curDataWindowIdx,]
-        
+
+        curDataWindow &lt;- 
+            curDataWindow[,!colnames(curDataWindow) %in% c(&quot;numwindow&quot;)]
+
         curDataWindow$timestamp &lt;- 
             curDataWindow$timestamp - curDataWindow$timestamp[1]
         
-
+        curDataWindow$datawindownumber &lt;- dataWindowNumber
         
+        cleanTrainingData &lt;- rbind(cleanTrainingData,
+                                   curDataWindow)
+
+        dataWindowNumber &lt;- dataWindowNumber + 1
     }
 }</code></pre>
 

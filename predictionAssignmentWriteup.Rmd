@@ -41,21 +41,35 @@ if (!file.exists("./Data")) {
     download.file(testDataURL, destfile = "./Data/testData.csv")
 }
 
-trainingData <- read.csv(file = "./Data/trainingData.csv",
-                         header=TRUE,
-                         stringsAsFactors = FALSE)
+loadExerciseData <- function(exerciseDataFile) {
+#------------------------------------------------------------------------
+#------------------------------------------------------------------------
+    exerciseData <- read.csv(file = file.path("./Data",
+                                              exerciseDataFile),
+                             header=TRUE,
+                             stringsAsFactors = FALSE)
 
-colnames(trainingData) <- tolower(colnames(trainingData))
-variableNames <- colnames(trainingData)
+    colnames(exerciseData) <- tolower(colnames(exerciseData))
+    variableNames <- colnames(exerciseData)
 
-for (i in seq_len(length(variableNames))) {
-    variableNames[i] <- gsub("_", "", variableNames[i])
+    for (i in seq_len(length(variableNames))) {
+        variableNames[i] <- gsub("_", "", variableNames[i])
+    }
+    
+    colnames(exerciseData) <- variableNames
+    
+    exerciseData$timestamp <- exerciseData$rawtimestamppart1 + 
+                              exerciseData$rawtimestamppart2*1E-6
+    
+    exerciseData <- 
+        exerciseData[,!colnames(exerciseData) %in% c("x",
+                                                     "rawtimestamppart1",
+                                                     "rawtimestamppart2")]
+
+    return(exerciseData)
 }
 
-colnames(trainingData) <- variableNames
-
-trainingData$timestamp <- trainingData$rawtimestamppart1 + 
-                          trainingData$rawtimestamppart2*1E-6
+trainingData <- loadExerciseData("trainingData.csv")
 ```
 
 ```{r removeNAData, comment=""}
@@ -205,14 +219,23 @@ cleanTrainingData <- data.frame()
 variableNames <- colnames(trainingData)
 
 for (curClasse in names(dataWindow)) {
+    dataWindowNumber <- 1
+    
     for (curDataWindowIdx in dataWindow[[curClasse]]) {
         curDataWindow <- trainingData[curDataWindowIdx,]
-        
+
+        curDataWindow <- 
+            curDataWindow[,!colnames(curDataWindow) %in% c("numwindow")]
+
         curDataWindow$timestamp <- 
             curDataWindow$timestamp - curDataWindow$timestamp[1]
         
-
+        curDataWindow$datawindownumber <- dataWindowNumber
         
+        cleanTrainingData <- rbind(cleanTrainingData,
+                                   curDataWindow)
+
+        dataWindowNumber <- dataWindowNumber + 1
     }
 }
 ```
