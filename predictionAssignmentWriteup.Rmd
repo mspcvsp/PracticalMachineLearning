@@ -1,0 +1,100 @@
+---
+title: "Prediction Assignment Writeup"
+author: "datasciencespm"
+date: "Friday, September 12, 2014"
+output: html_document
+---
+[verify required packages are installed][1]
+```{r setupEnvironment, message=FALSE}
+
+# Verify required packages are installed
+required.packages <- c("lubridate",
+                       "data.table",
+                       "ggplot2",
+                       "xtable")
+
+new.packages <- required.packages[!(required.packages %in% 
+                                    installed.packages())]
+
+if(length(new.packages)) {
+  install.packages(new.packages)
+} 
+
+# Load required packages
+library(data.table)
+library(ggplot2)
+library(lubridate)
+```
+
+```{r loadAndCleanData}
+if (!file.exists("./Data")) {
+    dir.create("./Data")
+    
+    trainingDataURL <- 
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+
+    testDataURL <-
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+    
+    download.file(trainingDataURL, destfile = "./Data/trainingData.csv")
+    
+    download.file(testDataURL, destfile = "./Data/testData.csv")
+}
+
+trainingData <- read.csv(file = "./Data/trainingData.csv",
+                         header=TRUE,
+                         stringsAsFactors = FALSE)
+
+colnames(trainingData) <- tolower(colnames(trainingData))
+variableNames <- colnames(trainingData)
+
+for (i in seq_len(length(variableNames))) {
+    variableNames[i] <- gsub("_", "", variableNames[i])
+}
+
+colnames(trainingData) <- variableNames
+
+trainingData$timestamp <- trainingData$rawtimestamppart1 + 
+                          trainingData$rawtimestamppart2*1E-6
+```
+
+```{r splitTrainingData, results='asis'}
+startOfNewWindow <- which(trainingData$newwindow == "yes")
+
+weightLiftingClass <- unique(trainingData$classe)
+
+dataWindow <- list();
+for (curClass in weightLiftingClass) {
+    dataWindow[[curClass]] <- list();    
+}
+
+numDataWindows <- length(startOfNewWindow)
+
+for (n in seq(0, numDataWindows)) {
+    if (n == 0) {
+        curWindowIdx <- 1:(startOfNewWindow[1] - 1)
+    }
+    else if (n == numDataWindows) {
+        curWindowIdx <- startOfNewWindow[n]:nrow(trainingData)
+    }
+    else
+    {
+        curWindowIdx <- startOfNewWindow[n]:(startOfNewWindow[n + 1]- 1)
+    }
+    curClass <- trainingData$classe[curWindowIdx[1]]
+
+    dataWindow[[curClass]][[length(dataWindow[[curClass]]) + 1]] <- 
+        curWindowIdx
+}
+
+dataWindowCount <- data.frame()
+for (curClass in weightLiftingClass) {
+    dataWindowCount <- rbind(dataWindowCount,
+                             data.frame(class=curClass,
+                                        count=length(dataWindow[[curClass]])))
+}
+```
+
+[1]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
+[2]: http://stackoverflow.com/questions/4605206/drop-columns-r-data-frame
+
