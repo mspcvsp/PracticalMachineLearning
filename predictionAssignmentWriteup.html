@@ -105,6 +105,35 @@ colnames(trainingData) &lt;- variableNames
 
 trainingData$timestamp &lt;- trainingData$rawtimestamppart1 + 
                           trainingData$rawtimestamppart2*1E-6</code></pre>
+<pre class="r"><code>calculateMissingDataStatistics &lt;- function(trainingData) {
+    variableNames &lt;- colnames(trainingData)
+    
+    naData &lt;- data.frame()
+    for (curVar in variableNames) {
+        naData &lt;- 
+            rbind(naData,
+                  data.frame(variable=curVar,
+                             nacount=sum(is.na(trainingData[,curVar]))))
+    }
+
+    naData$nacount &lt;- 100*(naData$nacount / nrow(trainingData))
+    
+    return(naData)
+}
+
+naData &lt;- calculateMissingDataStatistics(trainingData)
+summary(naData$nacount)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0     0.0     0.0    40.8    97.9    97.9 </code></pre>
+<pre class="r"><code>naData &lt;- subset(naData, naData$nacount &gt; 0)
+naVariables &lt;- as.character(naData$variable)
+
+trainingData &lt;- trainingData[,!(colnames(trainingData) %in% naVariables)]
+
+naData &lt;- calculateMissingDataStatistics(trainingData)
+summary(naData$nacount)</code></pre>
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      0       0       0       0       0       0 </code></pre>
 <pre class="r"><code>startOfNewWindow &lt;- which(trainingData$newwindow == &quot;yes&quot;)
 
 initializeDataWindowIndex &lt;- function(trainingData,
@@ -359,6 +388,23 @@ E
     </tr>
     </tbody>
 </table>
+
+
+<pre class="r"><code>cleanTrainingData &lt;- data.frame()
+
+variableNames &lt;- colnames(trainingData)
+
+for (curClasse in names(dataWindow)) {
+    for (curDataWindowIdx in dataWindow[[curClasse]]) {
+        curDataWindow &lt;- trainingData[curDataWindowIdx,]
+        
+        curDataWindow$timestamp &lt;- 
+            curDataWindow$timestamp - curDataWindow$timestamp[1]
+        
+
+        
+    }
+}</code></pre>
 
 
 </div>

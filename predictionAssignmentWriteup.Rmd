@@ -58,6 +58,35 @@ trainingData$timestamp <- trainingData$rawtimestamppart1 +
                           trainingData$rawtimestamppart2*1E-6
 ```
 
+```{r removeNAData, comment=""}
+calculateMissingDataStatistics <- function(trainingData) {
+    variableNames <- colnames(trainingData)
+    
+    naData <- data.frame()
+    for (curVar in variableNames) {
+        naData <- 
+            rbind(naData,
+                  data.frame(variable=curVar,
+                             nacount=sum(is.na(trainingData[,curVar]))))
+    }
+
+    naData$nacount <- 100*(naData$nacount / nrow(trainingData))
+    
+    return(naData)
+}
+
+naData <- calculateMissingDataStatistics(trainingData)
+summary(naData$nacount)
+
+naData <- subset(naData, naData$nacount > 0)
+naVariables <- as.character(naData$variable)
+
+trainingData <- trainingData[,!(colnames(trainingData) %in% naVariables)]
+
+naData <- calculateMissingDataStatistics(trainingData)
+summary(naData$nacount)
+```
+
 ```{r initializeDataWindowIndex, results='asis'}
 startOfNewWindow <- which(trainingData$newwindow == "yes")
 
@@ -170,6 +199,23 @@ htmlTable(dataWindowCount,
           rowlabel="",)
 ```
 
+```{r removeSmallDataWindows}
+cleanTrainingData <- data.frame()
+
+variableNames <- colnames(trainingData)
+
+for (curClasse in names(dataWindow)) {
+    for (curDataWindowIdx in dataWindow[[curClasse]]) {
+        curDataWindow <- trainingData[curDataWindowIdx,]
+        
+        curDataWindow$timestamp <- 
+            curDataWindow$timestamp - curDataWindow$timestamp[1]
+        
+
+        
+    }
+}
+```
 
 [1]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
 [2]: http://stackoverflow.com/questions/4605206/drop-columns-r-data-frame
