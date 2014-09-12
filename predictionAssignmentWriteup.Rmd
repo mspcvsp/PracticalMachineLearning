@@ -25,7 +25,7 @@ library(ggplot2)
 library(Gmisc)
 ```
 
-```{r loadAndCleanData}
+```{r loadAndCleanData, cache=TRUE}
 if (!file.exists("./Data")) {
     dir.create("./Data")
     
@@ -95,7 +95,7 @@ for (curClass in weightLiftingClass) {
 dataWindowCount$class <- as.character(dataWindowCount$class)
 htmlTable(dataWindowCount,
           caption="Class Data Window Count",
-          rowlabel="")
+          rowlabel="",)
 ```
 
 [1]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
