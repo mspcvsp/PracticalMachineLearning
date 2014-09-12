@@ -70,7 +70,12 @@ loadExerciseData <- function(exerciseDataFile) {
 }
 
 trainingData <- loadExerciseData("trainingData.csv")
+
+testData <- loadExerciseData("testData.csv")
 ```
+
+# of training data rows: `r nrow(trainingData)`
+# of test data rows: `r nrow(testData)`
 
 ```{r removeNAData, comment=""}
 calculateMissingDataStatistics <- function(trainingData) {
@@ -101,11 +106,13 @@ naData <- calculateMissingDataStatistics(trainingData)
 summary(naData$nacount)
 ```
 
-```{r initializeDataWindowIndex, results='asis'}
-startOfNewWindow <- which(trainingData$newwindow == "yes")
-
+```{r evaluateDataWindowSizePart1, results='asis'}
+## ###########################################################################
+## DEFINE FUNCTIONS
+## ###########################################################################
 initializeDataWindowIndex <- function(trainingData,
-                                      minLength = 0) {
+                                      minLength = 0,
+                                      maxLength = NA) {
 #------------------------------------------------------------------------
 # Initializes a compound list that contains the data frame row indices
 # corresponding to a specific data window
@@ -117,6 +124,8 @@ initializeDataWindowIndex <- function(trainingData,
         dataWindow[[curClasse]] <- list();    
     }
     
+    startOfNewWindow <- which(trainingData$newwindow == "yes")
+
     numDataWindows <- length(startOfNewWindow)
     
     for (n in seq(0, numDataWindows)) {
@@ -132,7 +141,16 @@ initializeDataWindowIndex <- function(trainingData,
         }
         curClasse <- trainingData$classe[curWindowIdx[1]]
     
-        if (length(curWindowIdx) >= minLength) {
+        minLengthTest <- length(curWindowIdx) >= minLength
+
+        if (is.na(maxLength)) {
+            maxLengthTest <- TRUE
+        }
+        else {
+            maxLengthTest <- length(curWindowIdx) <= maxLength
+        }
+
+        if (minLengthTest & maxLengthTest) {
             dataWindow[[curClasse]][[length(dataWindow[[curClasse]]) + 1]] <- 
                 curWindowIdx            
         }
@@ -140,8 +158,6 @@ initializeDataWindowIndex <- function(trainingData,
     
     return(dataWindow)
 }
-
-dataWindow <- initializeDataWindowIndex(trainingData)
 
 computeDataWindowCount <- function(dataWindow) {
 #------------------------------------------------------------------------
@@ -158,14 +174,6 @@ computeDataWindowCount <- function(dataWindow) {
     return(dataWindowCount)
 }
 
-dataWindowCount <- computeDataWindowCount(dataWindow)
-
-htmlTable(dataWindowCount,
-          caption="Class Data Window Count",
-          rowlabel="",)
-```
-
-```{r evaluateDataWindowSizePart1, comment=""}
 #------------------------------------------------------------------------
 #------------------------------------------------------------------------
 computeDataWindowSize <- function(dataWindow) {
@@ -182,38 +190,71 @@ computeDataWindowSize <- function(dataWindow) {
     return(dataWindowSize)
 }
 
+computeDataWindowSizeSummary <- function(dataWindowSize) {
+#----------------------------------------------------------------------
+#----------------------------------------------------------------------
+    dataWindowSizeSummary <- data.frame()
+    for (curClasse in unique(dataWindowSize$classe)) {
+        curCounts <- subset(dataWindowSize,
+                            dataWindowSize$classe==curClasse)
+    
+        curSummary <- summary(curCounts$windowsize)
+    
+        dataWindowSizeSummary <- 
+            rbind(dataWindowSizeSummary,
+                  data.frame(classe=curClasse,
+                             min=curSummary[1],
+                             firstquantile=curSummary[2],
+                             median=curSummary[3],
+                             mean=curSummary[4],
+                             thirdquantile=curSummary[5],
+                             max=curSummary[6]))
+    }
+    rownames(dataWindowSizeSummary) <- NULL
+    
+    dataWindowSizeSummary$classe <- as.character(dataWindowSizeSummary$classe)    
+    
+    return(dataWindowSizeSummary)
+}
+
+## ###########################################################################
+dataWindow <- initializeDataWindowIndex(trainingData)
+
 dataWindowSize = computeDataWindowSize(dataWindow)
 
-ggplot(dataWindowSize, aes(x=windowsize, fill=classe)) + 
-      geom_histogram(binwidth=1) + 
-      scale_fill_brewer(palette="Dark2") + 
-      facet_wrap(~classe)
+ggplot(dataWindowSize, aes(x=windowsize, colour=classe, fill=classe)) + 
+      geom_density() + scale_colour_brewer(palette="Dark2") + 
+      scale_fill_brewer(palette="Dark2") +
+      facet_wrap(~classe) + ggtitle("Original Data Window Size")
 
-summary(dataWindowSize$windowsize)
+dataWindowSizeSummary <- computeDataWindowSizeSummary(dataWindowSize)
 
-summary(dataWindowSize[which(dataWindowSize$windowsize > 2),c("windowsize")])
-```
-
-```{r evaluateDataWindowSizePart2, comment="", results='asis'}
-dataWindow <- initializeDataWindowIndex(trainingData, 12)
-
-dataWindowSize = computeDataWindowSize(dataWindow)
-
-ggplot(dataWindowSize, aes(x=windowsize, fill=classe)) + 
-      geom_histogram(binwidth=1) + 
-      scale_fill_brewer(palette="Dark2") + 
-      facet_wrap(~classe)
-
-summary(dataWindowSize$windowsize)
-
-dataWindowCount <- computeDataWindowCount(dataWindow)
-
-htmlTable(dataWindowCount,
-          caption="Class Data Window Count",
+htmlTable(dataWindowSizeSummary,
+          caption="Original Data Window Size Statistics",
           rowlabel="",)
 ```
 
-```{r removeSmallDataWindows}
+```{r evaluateDataWindowSizePart2, results='asis'}
+dataWindow <- initializeDataWindowIndex(trainingData,
+                                        max(dataWindowSizeSummary$min),
+                                        min(dataWindowSizeSummary$max))
+
+dataWindowSize = computeDataWindowSize(dataWindow)
+
+ggplot(dataWindowSize, aes(x=windowsize, colour=classe, fill=classe)) + 
+      geom_density() + scale_colour_brewer(palette="Dark2") + 
+      scale_fill_brewer(palette="Dark2") +
+      facet_wrap(~classe) + ggtitle("Updated Data Window Size")
+
+dataWindowSizeSummary <- computeDataWindowSizeSummary(dataWindowSize)
+
+htmlTable(dataWindowSizeSummary,
+          caption="Updated Data Window Size Statistics",
+          rowlabel="",)
+```
+  
+  
+```{r constrainDataWindowSize}
 cleanTrainingData <- data.frame()
 
 variableNames <- colnames(trainingData)
