@@ -122,7 +122,7 @@ htmlTable(dataWindowCount,
           rowlabel="",)
 ```
 
-```{r evaluateDataWindowSizePart1, comment=""}
+```{r evaluateDataWindowSizePart1, comment="", fig.path="figure/"}
 #------------------------------------------------------------------------
 #------------------------------------------------------------------------
 computeDataWindowSize <- function(dataWindow) {
@@ -151,7 +151,7 @@ summary(dataWindowSize$windowsize)
 summary(dataWindowSize[which(dataWindowSize$windowsize > 2),c("windowsize")])
 ```
 
-```{r evaluateDataWindowSizePart2, comment="", results='asis'}
+```{r evaluateDataWindowSizePart2, comment="", results='asis', fig.path="figure/"}
 dataWindow <- initializeDataWindowIndex(trainingData, 12)
 
 dataWindowSize = computeDataWindowSize(dataWindow)
