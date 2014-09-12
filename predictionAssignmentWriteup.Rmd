@@ -8,10 +8,9 @@ output: html_document
 ```{r setupEnvironment, message=FALSE}
 
 # Verify required packages are installed
-required.packages <- c("lubridate",
-                       "data.table",
+required.packages <- c("data.table",
                        "ggplot2",
-                       "xtable")
+                       "Gmisc")
 
 new.packages <- required.packages[!(required.packages %in% 
                                     installed.packages())]
@@ -23,7 +22,7 @@ if(length(new.packages)) {
 # Load required packages
 library(data.table)
 library(ggplot2)
-library(lubridate)
+library(Gmisc)
 ```
 
 ```{r loadAndCleanData}
@@ -93,8 +92,14 @@ for (curClass in weightLiftingClass) {
                              data.frame(class=curClass,
                                         count=length(dataWindow[[curClass]])))
 }
+dataWindowCount$class <- as.character(dataWindowCount$class)
+htmlTable(dataWindowCount,
+          caption="Class Data Window Count",
+          rowlabel="")
 ```
 
 [1]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
 [2]: http://stackoverflow.com/questions/4605206/drop-columns-r-data-frame
+[3]: http://stackoverflow.com/questions/5430338/remove-data-frame-row-names-when-using-xtable
+[4]: http://tex.stackexchange.com/questions/165329/controlling-formatting-options-for-xtable
 
