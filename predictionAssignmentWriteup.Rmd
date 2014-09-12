@@ -23,6 +23,7 @@ if(length(new.packages)) {
 library(data.table)
 library(ggplot2)
 library(Gmisc)
+library(RColorBrewer)
 ```
 
 ```{r loadAndCleanData, cache=TRUE}
@@ -57,46 +58,118 @@ trainingData$timestamp <- trainingData$rawtimestamppart1 +
                           trainingData$rawtimestamppart2*1E-6
 ```
 
-```{r splitTrainingData, results='asis'}
+```{r initializeDataWindowIndex, results='asis'}
 startOfNewWindow <- which(trainingData$newwindow == "yes")
 
-weightLiftingClass <- unique(trainingData$classe)
-
-dataWindow <- list();
-for (curClass in weightLiftingClass) {
-    dataWindow[[curClass]] <- list();    
+initializeDataWindowIndex <- function(trainingData,
+                                      minLength = 0) {
+#------------------------------------------------------------------------
+# Initializes a compound list that contains the data frame row indices
+# corresponding to a specific data window
+#------------------------------------------------------------------------
+    weightLiftingClasse <- unique(trainingData$classe)
+    
+    dataWindow <- list();
+    for (curClasse in weightLiftingClasse) {
+        dataWindow[[curClasse]] <- list();    
+    }
+    
+    numDataWindows <- length(startOfNewWindow)
+    
+    for (n in seq(0, numDataWindows)) {
+        if (n == 0) {
+            curWindowIdx <- 1:(startOfNewWindow[1] - 1)
+        }
+        else if (n == numDataWindows) {
+            curWindowIdx <- startOfNewWindow[n]:nrow(trainingData)
+        }
+        else
+        {
+            curWindowIdx <- startOfNewWindow[n]:(startOfNewWindow[n + 1]- 1)
+        }
+        curClasse <- trainingData$classe[curWindowIdx[1]]
+    
+        if (length(curWindowIdx) >= minLength) {
+            dataWindow[[curClasse]][[length(dataWindow[[curClasse]]) + 1]] <- 
+                curWindowIdx            
+        }
+    }
+    
+    return(dataWindow)
 }
 
-numDataWindows <- length(startOfNewWindow)
+dataWindow <- initializeDataWindowIndex(trainingData)
 
-for (n in seq(0, numDataWindows)) {
-    if (n == 0) {
-        curWindowIdx <- 1:(startOfNewWindow[1] - 1)
+computeDataWindowCount <- function(dataWindow) {
+#------------------------------------------------------------------------
+#------------------------------------------------------------------------
+    dataWindowCount <- data.frame()
+    for (curClasse in names(dataWindow)) {
+        dataWindowCount <- rbind(dataWindowCount,
+                                 data.frame(classe=curClasse,
+                                            count=length(dataWindow[[curClasse]])))
     }
-    else if (n == numDataWindows) {
-        curWindowIdx <- startOfNewWindow[n]:nrow(trainingData)
-    }
-    else
-    {
-        curWindowIdx <- startOfNewWindow[n]:(startOfNewWindow[n + 1]- 1)
-    }
-    curClass <- trainingData$classe[curWindowIdx[1]]
 
-    dataWindow[[curClass]][[length(dataWindow[[curClass]]) + 1]] <- 
-        curWindowIdx
+    dataWindowCount$classe <- as.character(dataWindowCount$classe)
+    
+    return(dataWindowCount)
 }
 
-dataWindowCount <- data.frame()
-for (curClass in weightLiftingClass) {
-    dataWindowCount <- rbind(dataWindowCount,
-                             data.frame(class=curClass,
-                                        count=length(dataWindow[[curClass]])))
-}
-dataWindowCount$class <- as.character(dataWindowCount$class)
+dataWindowCount <- computeDataWindowCount(dataWindow)
+
 htmlTable(dataWindowCount,
           caption="Class Data Window Count",
           rowlabel="",)
 ```
+
+```{r evaluateDataWindowSizePart1, comment=""}
+#------------------------------------------------------------------------
+#------------------------------------------------------------------------
+computeDataWindowSize <- function(dataWindow) {
+    dataWindowSize <- data.frame()
+
+    for (curClasse in names(dataWindow)) {
+        for (curIdx in dataWindow[[curClasse]]) {
+            dataWindowSize <- 
+                rbind(dataWindowSize,data.frame(classe=curClasse,
+                                                windowsize=length(curIdx)))
+        }
+    }
+    
+    return(dataWindowSize)
+}
+
+dataWindowSize = computeDataWindowSize(dataWindow)
+
+ggplot(dataWindowSize, aes(x=windowsize, fill=classe)) + 
+      geom_histogram(binwidth=1) + 
+      scale_fill_brewer(palette="Dark2") + 
+      facet_wrap(~classe)
+
+summary(dataWindowSize$windowsize)
+
+summary(dataWindowSize[which(dataWindowSize$windowsize > 2),c("windowsize")])
+```
+
+```{r evaluateDataWindowSizePart2, comment="", results='asis'}
+dataWindow <- initializeDataWindowIndex(trainingData, 12)
+
+dataWindowSize = computeDataWindowSize(dataWindow)
+
+ggplot(dataWindowSize, aes(x=windowsize, fill=classe)) + 
+      geom_histogram(binwidth=1) + 
+      scale_fill_brewer(palette="Dark2") + 
+      facet_wrap(~classe)
+
+summary(dataWindowSize$windowsize)
+
+dataWindowCount <- computeDataWindowCount(dataWindow)
+
+htmlTable(dataWindowCount,
+          caption="Class Data Window Count",
+          rowlabel="",)
+```
+
 
 [1]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
 [2]: http://stackoverflow.com/questions/4605206/drop-columns-r-data-frame
