@@ -6,7 +6,6 @@ output: html_document
 ---
 [verify required packages are installed][1]
 ```{r setupEnvironment, message=FALSE}
-
 # Verify required packages are installed
 required.packages <- c("data.table",
                        "ggplot2",
@@ -24,9 +23,14 @@ library(data.table)
 library(ggplot2)
 library(Gmisc)
 library(RColorBrewer)
+library(knitr)
+
+opts_chunk$set(cache=TRUE,
+               cache.path = 'DocumentName_cache/',
+               fig.path='figure/')
 ```
 
-```{r loadAndCleanData, cache=TRUE}
+```{r loadAndCleanDataPart1}
 if (!file.exists("./Data")) {
     dir.create("./Data")
     
@@ -54,6 +58,7 @@ loadExerciseData <- function(exerciseDataFile) {
 
     for (i in seq_len(length(variableNames))) {
         variableNames[i] <- gsub("_", "", variableNames[i])
+        variableNames[i] <- gsub("\\.", "", variableNames[i])
     }
     
     colnames(exerciseData) <- variableNames
@@ -74,39 +79,10 @@ trainingData <- loadExerciseData("trainingData.csv")
 testData <- loadExerciseData("testData.csv")
 ```
 
-# of training data rows: `r nrow(trainingData)`
-# of test data rows: `r nrow(testData)`
+Number of training data rows: `r nrow(trainingData)`
+Number of test data rows: `r nrow(testData)`
 
-```{r removeNAData, comment=""}
-calculateMissingDataStatistics <- function(trainingData) {
-    variableNames <- colnames(trainingData)
-    
-    naData <- data.frame()
-    for (curVar in variableNames) {
-        naData <- 
-            rbind(naData,
-                  data.frame(variable=curVar,
-                             nacount=sum(is.na(trainingData[,curVar]))))
-    }
-
-    naData$nacount <- 100*(naData$nacount / nrow(trainingData))
-    
-    return(naData)
-}
-
-naData <- calculateMissingDataStatistics(trainingData)
-summary(naData$nacount)
-
-naData <- subset(naData, naData$nacount > 0)
-naVariables <- as.character(naData$variable)
-
-trainingData <- trainingData[,!(colnames(trainingData) %in% naVariables)]
-
-naData <- calculateMissingDataStatistics(trainingData)
-summary(naData$nacount)
-```
-
-```{r evaluateDataWindowSizePart1, results='asis'}
+```{r initializeDataWindowDescription, results='asis'}
 ## ###########################################################################
 ## DEFINE FUNCTIONS
 ## ###########################################################################
@@ -219,15 +195,243 @@ computeDataWindowSizeSummary <- function(dataWindowSize) {
 
 ## ###########################################################################
 dataWindow <- initializeDataWindowIndex(trainingData)
+```
+  
+```{r loadAndCleanDataPart2}
+variableNames <- colnames(trainingData)
 
-dataWindowSize = computeDataWindowSize(dataWindow)
+variableNames <- variableNames[!variableNames %in% c("username",
+                                                     "cvtdtimestamp",
+                                                     "newwindow",
+                                                     "numwindow",
+                                                     "classe",
+                                                     "timestamp")]
 
-ggplot(dataWindowSize, aes(x=windowsize, colour=classe, fill=classe)) + 
-      geom_density() + scale_colour_brewer(palette="Dark2") + 
-      scale_fill_brewer(palette="Dark2") +
-      facet_wrap(~classe) + ggtitle("Original Data Window Size")
+characterVariables <- vector()
+numericVariables <- vector()
 
-dataWindowSizeSummary <- computeDataWindowSizeSummary(dataWindowSize)
+for (i in seq_len(length(variableNames))) {
+    curClass <- class(trainingData[,variableNames[i]])
+    if (curClass == "character") {
+        characterVariables <- c(characterVariables, variableNames[i])
+    }
+    else if (curClass == "numeric" | curClass == "integer") {
+        numericVariables <- c(numericVariables, variableNames[i])
+    }
+}
+
+processNumericVariables <- function(curDataWindowIn,
+                                    numericVariables) {
+#-------------------------------------------------------
+    numNumericVariables <- length(numericVariables)
+    
+    for (i in seq_len(numNumericVariables)) {
+        curSamples <- curDataWindowIn[,numericVariables[i]]
+        
+        numValidSamples <- sum(!is.na(curSamples))
+        
+        if (numValidSamples == 1) {
+            curNumericVariable <- 
+                data.frame(curSamples[!is.na(curSamples)])
+        }
+        else {
+            curNumericVariable <- data.frame(median(curSamples))
+        }
+        colnames(curNumericVariable) <- numericVariables[i]
+     
+         if (i == 1) {
+             curDataWindow <- curNumericVariable
+         }
+         else {
+             curDataWindow <- cbind(curDataWindow, curNumericVariable)
+         }
+    }
+    
+    return(curDataWindow)
+}
+
+processCharacterVariables <- function(curDataWindowIn,
+                                      characterVariables) {
+    numCharacterVariables <- length(characterVariables)
+    
+    #---------------------------------------------------------
+    for (i in seq_len(numCharacterVariables)) {
+        curVar <- characterVariables[i]
+        curSamples <- suppressWarnings(as.numeric(curDataWindowIn[,curVar]))
+        
+        validIdx = which(!is.na(curSamples))
+        
+        numValidSamples <- length(validIdx)
+        
+        if (numValidSamples > 0) {
+            curCharacterVariable <- data.frame(median(curSamples[validIdx]))
+        }
+        else {
+            curCharacterVariable <- data.frame(NA)
+        }
+        colnames(curCharacterVariable) <- characterVariables[i]
+
+        if (i == 1) {
+            curDataWindow = curCharacterVariable
+        }
+        else {
+            curDataWindow <- cbind(curDataWindow, curCharacterVariable)    
+        }
+    }
+    
+    return(curDataWindow)
+}
+
+initializeMeasurements <- function(trainingData,
+                                   dataWindow) {
+    cleanData <- list()
+    ambiguousClasseDataWindow <- list()
+    incompleteCaseDataWindow <- list()
+    cleanDataWindow <- list()
+    cleanTrainingData <- data.frame()
+
+    for (curClasse in names(dataWindow)) {
+        dataWindowNumber <- 1
+        
+        for (curDataWindowIdx in dataWindow[[curClasse]]) {
+            curDataWindowIn <- trainingData[curDataWindowIdx,]
+            
+            numUniqueClasse <- length(unique(curDataWindowIn$classe))
+        
+            #-----------------------------------------------------------------
+            if (numUniqueClasse == 1) {
+                curDataWindow <- processNumericVariables(curDataWindowIn,
+                                                         numericVariables)
+    
+                curDataWindow <- 
+                    cbind(curDataWindow,
+                          processCharacterVariables(curDataWindowIn,
+                                                    characterVariables))
+
+                curDataWindow$datawindownumber <- dataWindowNumber
+                
+                curDataWindow$windowsize <- length(curDataWindowIdx)
+            
+                curDataWindow$classe <- curDataWindowIn$classe[1]
+
+                n <- length(cleanDataWindow[[curClasse]]) + 1
+                
+                cleanDataWindow[[curClasse]][[n]] <- curDataWindowIdx 
+                
+                cleanTrainingData <- rbind(cleanTrainingData,
+                                           curDataWindow)
+    
+                dataWindowNumber <- dataWindowNumber + 1
+            }
+            #-----------------------------------------------------------------
+            else {
+                n <- length(ambiguousClasseDataWindow[[curClasse]]) + 1
+
+                ambiguousClasseDataWindow[[curClasse]][[n]] <- 
+                    curDataWindowIdx 
+            }
+        }
+    }
+    
+    cleanData[[1]] <- cleanTrainingData
+    cleanData[[2]] <- cleanDataWindow
+    cleanData[[3]] <- ambiguousClasseDataWindow
+    
+    return(cleanData)
+}
+
+cleanData <- initializeMeasurements(trainingData,
+                                    dataWindow)
+rm(trainingData)
+
+cleanTrainingData <- cleanData[[1]]
+cleanDataWindow <- cleanData[[2]]
+ambiguousClasseDataWindow <- cleanData[[3]]
+rm(cleanData)
+
+variableNames <- colnames(cleanTrainingData)
+
+percentNAValues <- vector('numeric',length(variableNames))
+for (i in seq_len(length(percentNAValues))) {
+    percentNAValues[i] <- sum(is.na(cleanTrainingData[,variableNames[i]]))
+}
+percentNAValues <- 100 * (percentNAValues / nrow(cleanTrainingData))
+percentNAValues <- data.frame(percentnavalues=percentNAValues)
+percentNAValues$variable <- variableNames
+percentNAValues$region <- cut2(percentNAValues$percentnavalues,
+                               cuts=c(1.5,5,15,50))
+
+ggplot(percentNAValues, aes(x=percentnavalues,fill=region, colour=region)) + 
+    scale_color_brewer(palette="Dark2") + scale_fill_brewer(palette="Dark2") +
+    geom_density() + xlab("% of NA Values") + ylab("Density") + 
+    ggtitle("NA values Analysis") + theme_gray(base_size = 14)
+```
+
+```{r removeNAVariables, results='asis'}
+excluedVariables <- 
+    percentNAValues[which(percentNAValues$percentnavalues >= 5.0),]
+
+excluedVariables$region <- as.character(excluedVariables$region)
+rownames(excluedVariables) <- NULL
+
+htmlTable(excluedVariables,
+          caption="Excluded Variables Based on % of NA Values",
+          digits = 2,
+          align = c("c","c","c"),
+          rowlabel="")
+
+cleanTrainingData <- 
+    cleanTrainingData[,!colnames(cleanTrainingData) %in% 
+                                 excluedVariables$variable]
+
+cleanTrainingData <- 
+    cleanTrainingData[,!colnames(cleanTrainingData) %in% 
+                                 c("username",
+                                   "cvtdtimestamp",
+                                   "newwindow",
+                                   "numwindow",
+                                   "timestamp")]
+```
+
+```{r evaluateDataWindowSizePart1, results='asis'}
+## ###########################################################################
+## DEFINE FUNCTIONS
+## ###########################################################################
+initializeCleanDataWindowSizeSummary <- function(cleanTrainingData) {
+#----------------------------------------------------------------------
+#----------------------------------------------------------------------
+    dataWindowSizeSummary <- data.frame()
+
+    for (curClasse in unique(cleanTrainingData$classe)) {
+        curWindowsize <- 
+            cleanTrainingData[which(cleanTrainingData$classe==curClasse),
+                              c("windowsize")]
+    
+        curSummary <- summary(curWindowsize)
+    
+        dataWindowSizeSummary <- 
+            rbind(dataWindowSizeSummary,
+                  data.frame(classe=curClasse,
+                             min=curSummary[1],
+                             firstquantile=curSummary[2],
+                             median=curSummary[3],
+                             mean=curSummary[4],
+                             thirdquantile=curSummary[5],
+                             max=curSummary[6]))
+    }
+    rownames(dataWindowSizeSummary) <- NULL
+    
+    dataWindowSizeSummary$classe <- 
+        as.character(dataWindowSizeSummary$classe)
+    
+    return(dataWindowSizeSummary)
+}
+
+## ###########################################################################
+## ANALYSIS
+## ###########################################################################
+dataWindowSizeSummary <- 
+    initializeCleanDataWindowSizeSummary(cleanTrainingData)
 
 htmlTable(dataWindowSizeSummary,
           caption="Original Data Window Size Statistics",
@@ -235,54 +439,60 @@ htmlTable(dataWindowSizeSummary,
 ```
 
 ```{r evaluateDataWindowSizePart2, results='asis'}
-dataWindow <- initializeDataWindowIndex(trainingData,
-                                        max(dataWindowSizeSummary$min),
-                                        min(dataWindowSizeSummary$max))
+cleanTrainingData$windowsizeregion <- 
+    cut2(cleanTrainingData$windowsize,
+         cuts=c(20,70,130))
 
-dataWindowSize = computeDataWindowSize(dataWindow)
+windowsizeregion <- as.data.frame(table(cleanTrainingData$windowsizeregion))
+colnames(windowsizeregion) <- c("windowsizeregion","frequency")
+windowsizeregion$windowsizeregion <- 
+    as.character(windowsizeregion$windowsizeregion)
 
-ggplot(dataWindowSize, aes(x=windowsize, colour=classe, fill=classe)) + 
+htmlTable(windowsizeregion,
+          caption="Data Window Size Statistics",
+          align=c("c","c"),
+          rowlabel="",)
+
+exlcudedWindowSize <- 
+    windowsizeregion[windowsizeregion$windowsizeregion %in% 
+                     c("[  1, 20)","[130,337]"),]
+
+percentExcludedData <- 
+    round(100*(sum(exlcudedWindowSize$frequency) / 
+          sum(windowsizeregion$frequency)), digits=1)
+```
+
+```{r evaluateDataWindowSizePart3}
+ggplot(cleanTrainingData, aes(x=windowsize, colour=classe, fill=classe)) + 
       geom_density() + scale_colour_brewer(palette="Dark2") + 
       scale_fill_brewer(palette="Dark2") +
-      facet_wrap(~classe) + ggtitle("Updated Data Window Size")
+      facet_wrap(~classe) + ggtitle("Initial Data Window Size Statistics")
+```
 
-dataWindowSizeSummary <- computeDataWindowSizeSummary(dataWindowSize)
+```{r constrainDataWindowSize, results='asis'}
+cleanTrainingData <- 
+    cleanTrainingData[cleanTrainingData$windowsizeregion %in%
+                      c("[ 20, 70)","[ 70,130)"),]
+
+ggplot(cleanTrainingData, aes(x=windowsize, colour=classe, fill=classe)) + 
+      geom_density() + scale_colour_brewer(palette="Dark2") + 
+      scale_fill_brewer(palette="Dark2") +
+      facet_wrap(~classe) + ggtitle("Updated Data Window Size Statistics")
+
+dataWindowSizeSummary <- 
+    initializeCleanDataWindowSizeSummary(cleanTrainingData)
 
 htmlTable(dataWindowSizeSummary,
           caption="Updated Data Window Size Statistics",
-          rowlabel="",)
+          align=c("c","c","c","c","c","c","c"),
+          rowlabel="")
 ```
-  
-  
-```{r constrainDataWindowSize}
-cleanTrainingData <- data.frame()
-
-variableNames <- colnames(trainingData)
-
-for (curClasse in names(dataWindow)) {
-    dataWindowNumber <- 1
-    
-    for (curDataWindowIdx in dataWindow[[curClasse]]) {
-        curDataWindow <- trainingData[curDataWindowIdx,]
-
-        curDataWindow <- 
-            curDataWindow[,!colnames(curDataWindow) %in% c("numwindow")]
-
-        curDataWindow$timestamp <- 
-            curDataWindow$timestamp - curDataWindow$timestamp[1]
-        
-        curDataWindow$datawindownumber <- dataWindowNumber
-        
-        cleanTrainingData <- rbind(cleanTrainingData,
-                                   curDataWindow)
-
-        dataWindowNumber <- dataWindowNumber + 1
-    }
-}
-```
-
 [1]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
 [2]: http://stackoverflow.com/questions/4605206/drop-columns-r-data-frame
 [3]: http://stackoverflow.com/questions/5430338/remove-data-frame-row-names-when-using-xtable
 [4]: http://tex.stackexchange.com/questions/165329/controlling-formatting-options-for-xtable
 [5]: http://stackoverflow.com/questions/8446218/how-to-see-an-html-page-on-github-as-a-normal-rendered-html-page-to-see-preview
+[6]: http://stackoverflow.com/questions/14984989/how-to-avoid-warning-when-introducing-nas-by-coercion
+[7]: http://adv-r.had.co.nz/Exceptions-Debugging.html
+[8]: http://rpubs.com/ssong/demo1
+[9]: http://stackoverflow.com/questions/24171232/problems-in-knitting-html-in-preview-release-of-rstudio
