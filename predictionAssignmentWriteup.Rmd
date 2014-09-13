@@ -197,7 +197,7 @@ computeDataWindowSizeSummary <- function(dataWindowSize) {
 dataWindow <- initializeDataWindowIndex(trainingData)
 ```
   
-```{r loadAndCleanDataPart2}
+```{r loadAndCleanDataPart2, results='asis'}
 variableNames <- colnames(trainingData)
 
 variableNames <- variableNames[!variableNames %in% c("username",
@@ -361,11 +361,33 @@ percentNAValues$variable <- variableNames
 percentNAValues$region <- cut2(percentNAValues$percentnavalues,
                                cuts=c(1.5,5,15,50))
 
+percentNAValuesRegions <- as.data.frame(table(percentNAValues$region))
+
+colnames(percentNAValuesRegions) <- c("region","frequency")
+
+percentNAValuesRegions$region <- as.character(percentNAValuesRegions$region)
+
+htmlTable(percentNAValuesRegions,
+          caption="% NA Value Statistics",
+          align=c("c","c"),
+          rowlabel="",)
+
+percentVariablesExcluded = 
+    100 * sum(percentNAValuesRegions[percentNAValuesRegions$region %in%
+                                     c("[  5.0, 15.0)",
+                                       "[ 15.0, 50.0)",
+                                       "[ 50.0,100.0]"),c("frequency")]) /
+          sum(percentNAValuesRegions$frequency)
+
+percentVariablesExcluded <- round(percentVariablesExcluded, digits=1)
+
 ggplot(percentNAValues, aes(x=percentnavalues,fill=region, colour=region)) + 
     scale_color_brewer(palette="Dark2") + scale_fill_brewer(palette="Dark2") +
     geom_density() + xlab("% of NA Values") + ylab("Density") + 
     ggtitle("NA values Analysis") + theme_gray(base_size = 14)
 ```
+
+% of variables removed due to NA values: `r percentVariablesExcluded`
 
 ```{r removeNAVariables, results='asis'}
 excluedVariables <- 
@@ -376,7 +398,6 @@ rownames(excluedVariables) <- NULL
 
 htmlTable(excluedVariables,
           caption="Excluded Variables Based on % of NA Values",
-          digits = 2,
           align = c("c","c","c"),
           rowlabel="")
 
