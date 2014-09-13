@@ -7,9 +7,13 @@ output: html_document
 [verify required packages are installed][1]
 ```{r setupEnvironment, message=FALSE}
 # Verify required packages are installed
-required.packages <- c("data.table",
+required.packages <- c("caret",
+                       "Gmisc",
                        "ggplot2",
-                       "Gmisc")
+                       "knitr",
+                       "GGally",
+                       "randomForest",
+                       "RColorBrewer")
 
 new.packages <- required.packages[!(required.packages %in% 
                                     installed.packages())]
@@ -19,11 +23,13 @@ if(length(new.packages)) {
 } 
 
 # Load required packages
-library(data.table)
-library(ggplot2)
+library(caret)
 library(Gmisc)
-library(RColorBrewer)
+library(ggplot2)
 library(knitr)
+library(GGally)
+library(randomForest)
+library(RColorBrewer)
 
 opts_chunk$set(cache=TRUE,
                cache.path = 'DocumentName_cache/',
@@ -194,32 +200,15 @@ computeDataWindowSizeSummary <- function(dataWindowSize) {
 }
 
 ## ###########################################################################
+## ANALYSIS
+## ###########################################################################
 dataWindow <- initializeDataWindowIndex(trainingData)
 ```
   
 ```{r loadAndCleanDataPart2, results='asis'}
-variableNames <- colnames(trainingData)
-
-variableNames <- variableNames[!variableNames %in% c("username",
-                                                     "cvtdtimestamp",
-                                                     "newwindow",
-                                                     "numwindow",
-                                                     "classe",
-                                                     "timestamp")]
-
-characterVariables <- vector()
-numericVariables <- vector()
-
-for (i in seq_len(length(variableNames))) {
-    curClass <- class(trainingData[,variableNames[i]])
-    if (curClass == "character") {
-        characterVariables <- c(characterVariables, variableNames[i])
-    }
-    else if (curClass == "numeric" | curClass == "integer") {
-        numericVariables <- c(numericVariables, variableNames[i])
-    }
-}
-
+## ###########################################################################
+## DEFINE FUNCTIONS
+## ###########################################################################
 processNumericVariables <- function(curDataWindowIn,
                                     numericVariables) {
 #-------------------------------------------------------
@@ -340,6 +329,60 @@ initializeMeasurements <- function(trainingData,
     return(cleanData)
 }
 
+computePercentNAValues <- function(predictionData) {
+    variableNames <- colnames(predictionData)
+    
+    percentNAValues <- vector('numeric',length(variableNames))
+
+    for (i in seq_len(length(percentNAValues))) {
+        percentNAValues[i] <- 
+            sum(is.na(predictionData[,variableNames[i]]))
+    }
+
+    percentNAValues <- 100 * (percentNAValues / nrow(predictionData))
+    percentNAValues <- data.frame(percentnavalues=percentNAValues)
+    percentNAValues$variable <- variableNames
+    
+    return(percentNAValues)
+}
+
+computeNAValueStatistics <- function(percentNAValues) {
+    percentNAValuesRegions <- as.data.frame(table(percentNAValues$region))
+    
+    colnames(percentNAValuesRegions) <- c("region",
+                                          "frequency")
+    
+    percentNAValuesRegions$region <- 
+        as.character(percentNAValuesRegions$region)
+    
+    return(percentNAValuesRegions)
+}
+
+## ###########################################################################
+## ANALYSIS
+## ###########################################################################
+variableNames <- colnames(trainingData)
+
+variableNames <- variableNames[!variableNames %in% c("username",
+                                                     "cvtdtimestamp",
+                                                     "newwindow",
+                                                     "numwindow",
+                                                     "classe",
+                                                     "timestamp")]
+
+characterVariables <- vector()
+numericVariables <- vector()
+
+for (i in seq_len(length(variableNames))) {
+    curClass <- class(trainingData[,variableNames[i]])
+    if (curClass == "character") {
+        characterVariables <- c(characterVariables, variableNames[i])
+    }
+    else if (curClass == "numeric" | curClass == "integer") {
+        numericVariables <- c(numericVariables, variableNames[i])
+    }
+}
+
 cleanData <- initializeMeasurements(trainingData,
                                     dataWindow)
 rm(trainingData)
@@ -349,26 +392,15 @@ cleanDataWindow <- cleanData[[2]]
 ambiguousClasseDataWindow <- cleanData[[3]]
 rm(cleanData)
 
-variableNames <- colnames(cleanTrainingData)
+percentNAValues <- computePercentNAValues(cleanTrainingData)
 
-percentNAValues <- vector('numeric',length(variableNames))
-for (i in seq_len(length(percentNAValues))) {
-    percentNAValues[i] <- sum(is.na(cleanTrainingData[,variableNames[i]]))
-}
-percentNAValues <- 100 * (percentNAValues / nrow(cleanTrainingData))
-percentNAValues <- data.frame(percentnavalues=percentNAValues)
-percentNAValues$variable <- variableNames
 percentNAValues$region <- cut2(percentNAValues$percentnavalues,
                                cuts=c(1.5,5,15,50))
 
-percentNAValuesRegions <- as.data.frame(table(percentNAValues$region))
-
-colnames(percentNAValuesRegions) <- c("region","frequency")
-
-percentNAValuesRegions$region <- as.character(percentNAValuesRegions$region)
+percentNAValuesRegions <- computeNAValueStatistics(percentNAValues)
 
 htmlTable(percentNAValuesRegions,
-          caption="% NA Value Statistics",
+          caption="Training % NA Value Statistics",
           align=c("c","c"),
           rowlabel="",)
 
@@ -396,6 +428,9 @@ excluedVariables <-
 excluedVariables$region <- as.character(excluedVariables$region)
 rownames(excluedVariables) <- NULL
 
+excluedVariables$percentnavalues <- 
+    round(excluedVariables$percentnavalues, digits=1)
+
 htmlTable(excluedVariables,
           caption="Excluded Variables Based on % of NA Values",
           align = c("c","c","c"),
@@ -404,6 +439,9 @@ htmlTable(excluedVariables,
 cleanTrainingData <- 
     cleanTrainingData[,!colnames(cleanTrainingData) %in% 
                                  excluedVariables$variable]
+
+cleanTrainingData <- 
+    cleanTrainingData[complete.cases(cleanTrainingData),]
 
 cleanTrainingData <- 
     cleanTrainingData[,!colnames(cleanTrainingData) %in% 
@@ -470,7 +508,7 @@ windowsizeregion$windowsizeregion <-
     as.character(windowsizeregion$windowsizeregion)
 
 htmlTable(windowsizeregion,
-          caption="Data Window Size Statistics",
+          caption="Training Data Window Size Statistics",
           align=c("c","c"),
           rowlabel="",)
 
@@ -482,6 +520,8 @@ percentExcludedData <-
     round(100*(sum(exlcudedWindowSize$frequency) / 
           sum(windowsizeregion$frequency)), digits=1)
 ```
+
+Percent of training data excluded based on data window `r percentExcludedData`
 
 ```{r evaluateDataWindowSizePart3}
 ggplot(cleanTrainingData, aes(x=windowsize, colour=classe, fill=classe)) + 
@@ -507,7 +547,116 @@ htmlTable(dataWindowSizeSummary,
           caption="Updated Data Window Size Statistics",
           align=c("c","c","c","c","c","c","c"),
           rowlabel="")
+
+cleanTrainingData <- 
+    cleanTrainingData[!colnames(cleanTrainingData) %in% c("windowsizeregion",
+                                                          "windowsize",
+                                                          "datawindownumber")]
+
+cleanTrainingData$classe <- as.factor(cleanTrainingData$classe)
+
+rownames(cleanTrainingData) <- NULL
+
+variableNames <- colnames(cleanTrainingData)
 ```
+
+```{r checkTestDataForNAVariables, results='asis'}
+percentTestDataNAVariables <- computePercentNAValues(testData)
+
+percentTestDataNAVariables$region <- 
+    cut2(percentTestDataNAVariables$percentnavalues, cuts=c(0.1))
+
+percentTestDataNAValuesRegions <- 
+    computeNAValueStatistics(percentTestDataNAVariables)
+
+htmlTable(percentTestDataNAValuesRegions,
+          caption="Test Data % NA Value Statistics",
+          align=c("c","c"),
+          rowlabel="",)
+
+validTestVariableIdx <- which(percentTestDataNAVariables$percentnavalues == 0)
+
+validTestVariables <- 
+    percentTestDataNAVariables[validTestVariableIdx,c("variable")]
+
+validTestVariables <- 
+    validTestVariables[!validTestVariables %in% c("username",
+                                                  "cvtdtimestamp",
+                                                  "newwindow",
+                                                  "numwindow",
+                                                  "problemid",
+                                                  "timestamp")]
+
+cleanTrainingData <- 
+    cleanTrainingData[,colnames(cleanTrainingData) %in% 
+                                c(validTestVariables,"classe")]
+```
+
+Number of variables: `r length(variableNames[!variableNames %in% c("classe")])`
+
+```{r exploratoryDataAnalysisPart1}
+ggpairs(data=cleanTrainingData, columns=1:3, colour='classe')
+```
+
+```{r exploratoryDataAnalysisPart2}
+ggpairs(data=cleanTrainingData, columns=4:6, colour='classe')
+```
+
+```{r exploratoryDataAnalysisPart3}
+ggpairs(data=cleanTrainingData, columns=7:9, colour='classe')
+```
+
+```{r randomForestModel1}
+set.seed(33833)
+randomForestModel1Fit <- 
+    train(classe ~ ., data=cleanTrainingData, method="rf")
+
+variableImportanace <- varImp(randomForestModel1Fit$finalModel)
+variableImportanace$variable <- rownames(variableImportanace)
+rownames(variableImportanace) <- NULL
+colnames(variableImportanace) <- c("overallimportance",
+                                   "variable")
+
+variableImportanace <- variableImportanace[,c(2,1)]
+
+variableImportanace <- 
+    variableImportanace[order(variableImportanace$overallimportance,
+                              decreasing = TRUE),]
+
+rownames(variableImportanace) <- NULL
+
+qplot(1:nrow(variableImportanace),
+      variableImportanace$overallimportance, geom="line")
+```
+
+```{r randompForestModel2}
+cleanTrainingData2 <- 
+    cleanTrainingData[,colnames(cleanTrainingData) %in% 
+                       c(variableImportanace$variable[1:25],"classe")]
+
+set.seed(33833)
+randomForestModel2Fit <- 
+    train(classe ~ ., data=cleanTrainingData2, method="rf")
+```
+
+```{r randompForestModel3}
+cleanTrainingData3 <- 
+    cleanTrainingData[,colnames(cleanTrainingData) %in% 
+                       c(variableImportanace$variable[1:14],"classe")]
+
+set.seed(33833)
+randomForestModel3Fit <- 
+    train(classe ~ ., data=cleanTrainingData3, method="rf")
+```
+
+```{r generatePredictions}
+testDataIn <- testData[,colnames(testData) %in% 
+                        c(variableImportanace$variable[1:25])]
+
+predClasse <- predict(randomForestModel2Fit,
+                      testDataIn)
+```
+
 [1]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
 [2]: http://stackoverflow.com/questions/4605206/drop-columns-r-data-frame
 [3]: http://stackoverflow.com/questions/5430338/remove-data-frame-row-names-when-using-xtable
@@ -517,3 +666,5 @@ htmlTable(dataWindowSizeSummary,
 [7]: http://adv-r.had.co.nz/Exceptions-Debugging.html
 [8]: http://rpubs.com/ssong/demo1
 [9]: http://stackoverflow.com/questions/24171232/problems-in-knitting-html-in-preview-release-of-rstudio
+[10]: http://stackoverflow.com/questions/17604789/using-ggplot2-create-faceted-scatterplot-with-scaled-and-moved-density
+[11]: http://stackoverflow.com/questions/22237783/user-defined-colour-palette-in-r-and-ggpairs
