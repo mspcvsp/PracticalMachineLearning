@@ -607,9 +607,12 @@ ggpairs(data=cleanTrainingData, columns=7:9, colour='classe')
 ```
 
 ```{r randomForestModel1}
-set.seed(33833)
-randomForestModel1Fit <- 
-    train(classe ~ ., data=cleanTrainingData, method="rf")
+seedValue <- 33833
+set.seed(seedValue)
+randomForestModel1Fit <- train(classe ~ ., 
+                               data=cleanTrainingData, 
+                               method="rf",
+                               strata=cleanTrainingData$classe)
 
 variableImportanace <- varImp(randomForestModel1Fit$finalModel)
 variableImportanace$variable <- rownames(variableImportanace)
@@ -630,25 +633,51 @@ qplot(1:nrow(variableImportanace),
 ```
 
 ```{r randompForestModel2}
+rf2Idx <- seq(1:25)
+
 cleanTrainingData2 <- 
     cleanTrainingData[,colnames(cleanTrainingData) %in% 
-                       c(variableImportanace$variable[1:25],"classe")]
+                       c(variableImportanace$variable[rf2Idx],"classe")]
 
-set.seed(33833)
-randomForestModel2Fit <- 
-    train(classe ~ ., data=cleanTrainingData2, method="rf")
+set.seed(seedValue)
+randomForestModel2Fit <- train(classe ~ .,
+                               data=cleanTrainingData2,
+                               method="rf",
+                               strata=cleanTrainingData2$classe)
 
 print(randomForestModel2Fit$finalModel)
 ```
 
 ```{r randompForestModel3}
+rf3Idx <- seq(1:14)
+
 cleanTrainingData3 <- 
     cleanTrainingData[,colnames(cleanTrainingData) %in% 
-                       c(variableImportanace$variable[1:14],"classe")]
+                       c(variableImportanace$variable[rf3Idx],"classe")]
 
-set.seed(33833)
-randomForestModel3Fit <- 
-    train(classe ~ ., data=cleanTrainingData3, method="rf")
+set.seed(seedValue)
+randomForestModel3Fit <- train(classe ~ .,
+                               data=cleanTrainingData3,
+                               method="rf",
+                               strata=cleanTrainingData3$classe)
+
+print(randomForestModel3Fit$finalModel)
+```
+
+```{r randompForestModel4}
+rf4Idx <- seq(1:5)
+
+cleanTrainingData4 <- 
+    cleanTrainingData[,colnames(cleanTrainingData) %in% 
+                       c(variableImportanace$variable[rf4Idx],"classe")]
+
+set.seed(seedValue)
+randomForestModel4Fit <- train(classe ~ .,
+                               data=cleanTrainingData4,
+                               method="rf",
+                               strata=cleanTrainingData4$classe)
+
+print(randomForestModel4Fit$finalModel)
 ```
 
 ```{r generatePredictions}
@@ -674,12 +703,10 @@ pml_write_files = function(predClasse){
 }
 
 testDataIn <- testData[,colnames(testData) %in% 
-                        c(variableImportanace$variable[1:25])]
+                        c(variableImportanace$variable[rf3Idx])]
 
-predClasse <- predict(randomForestModel2Fit,
+predClasse <- predict(randomForestModel3Fit,
                       testDataIn)
-
-print(predClasse)
 
 pml_write_files(predClasse)
 ```
@@ -695,3 +722,4 @@ pml_write_files(predClasse)
 [9]: http://stackoverflow.com/questions/24171232/problems-in-knitting-html-in-preview-release-of-rstudio
 [10]: http://stackoverflow.com/questions/17604789/using-ggplot2-create-faceted-scatterplot-with-scaled-and-moved-density
 [11]: http://stackoverflow.com/questions/22237783/user-defined-colour-palette-in-r-and-ggpairs
+[12]: http://www.r-bloggers.com/down-sampling-using-random-forests/
