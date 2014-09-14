@@ -614,6 +614,8 @@ randomForestModel1Fit <- train(classe ~ .,
                                method="rf",
                                strata=cleanTrainingData$classe)
 
+print(randomForestModel1Fit$finalModel)
+
 variableImportanace <- varImp(randomForestModel1Fit$finalModel)
 variableImportanace$variable <- rownames(variableImportanace)
 rownames(variableImportanace) <- NULL
@@ -705,7 +707,7 @@ pml_write_files = function(predClasse){
 testDataIn <- testData[,colnames(testData) %in% 
                         c(variableImportanace$variable[rf3Idx])]
 
-predClasse <- predict(randomForestModel3Fit,
+predClasse <- predict(randomForestModel2Fit,
                       testDataIn)
 
 pml_write_files(predClasse)
