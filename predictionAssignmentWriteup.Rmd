@@ -224,7 +224,7 @@ processNumericVariables <- function(curDataWindowIn,
                 data.frame(curSamples[!is.na(curSamples)])
         }
         else {
-            curNumericVariable <- data.frame(median(curSamples))
+            curNumericVariable <- data.frame(mean(curSamples))
         }
         colnames(curNumericVariable) <- numericVariables[i]
      
@@ -637,6 +637,8 @@ cleanTrainingData2 <-
 set.seed(33833)
 randomForestModel2Fit <- 
     train(classe ~ ., data=cleanTrainingData2, method="rf")
+
+print(randomForestModel2Fit$finalModel)
 ```
 
 ```{r randompForestModel3}
@@ -650,11 +652,36 @@ randomForestModel3Fit <-
 ```
 
 ```{r generatePredictions}
+pml_write_files = function(predClasse){
+    resultsFolder = "./predictionResults"
+    
+    if (!file.exists(resultsFolder)) {
+        dir.create(resultsFolder)
+    }
+    
+    x <- as.character(predClasse)
+    
+    n = length(x)
+    for(i in 1:n){
+        filename = paste0("problem_id_",i,".txt")
+        write.table(x[i],
+                    file=file.path(resultsFolder,
+                                   filename),
+                    quote=FALSE,
+                    row.names=FALSE,
+                    col.names=FALSE)
+    }
+}
+
 testDataIn <- testData[,colnames(testData) %in% 
                         c(variableImportanace$variable[1:25])]
 
 predClasse <- predict(randomForestModel2Fit,
                       testDataIn)
+
+print(predClasse)
+
+pml_write_files(predClasse)
 ```
 
 [1]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
