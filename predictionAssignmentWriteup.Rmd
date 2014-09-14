@@ -705,7 +705,7 @@ pml_write_files = function(predClasse){
 }
 
 testDataIn <- testData[,colnames(testData) %in% 
-                        c(variableImportanace$variable[rf3Idx])]
+                        c(variableImportanace$variable[rf2Idx])]
 
 predClasse <- predict(randomForestModel2Fit,
                       testDataIn)

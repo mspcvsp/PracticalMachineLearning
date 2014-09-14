@@ -1418,7 +1418,23 @@ randomForestModel1Fit &lt;- train(classe ~ .,
                                method=&quot;rf&quot;,
                                strata=cleanTrainingData$classe)
 
-variableImportanace &lt;- varImp(randomForestModel1Fit$finalModel)
+print(randomForestModel1Fit$finalModel)</code></pre>
+<pre><code>## 
+## Call:
+##  randomForest(x = x, y = y, mtry = param$mtry, strata = ..1) 
+##                Type of random forest: classification
+##                      Number of trees: 500
+## No. of variables tried at each split: 2
+## 
+##         OOB estimate of  error rate: 16.72%
+## Confusion matrix:
+##    A  B  C  D  E class.error
+## A 79  3  1  3  1     0.09195
+## B  9 49  5  0  2     0.24615
+## C  5  3 56  0  0     0.12500
+## D  3  2  6 35  4     0.30000
+## E  0  6  1  2 60     0.13043</code></pre>
+<pre class="r"><code>variableImportanace &lt;- varImp(randomForestModel1Fit$finalModel)
 variableImportanace$variable &lt;- rownames(variableImportanace)
 rownames(variableImportanace) &lt;- NULL
 colnames(variableImportanace) &lt;- c(&quot;overallimportance&quot;,
@@ -1541,9 +1557,9 @@ print(randomForestModel4Fit$finalModel)</code></pre>
 }
 
 testDataIn &lt;- testData[,colnames(testData) %in% 
-                        c(variableImportanace$variable[rf3Idx])]
+                        c(variableImportanace$variable[rf2Idx])]
 
-predClasse &lt;- predict(randomForestModel3Fit,
+predClasse &lt;- predict(randomForestModel2Fit,
                       testDataIn)
 
 pml_write_files(predClasse)</code></pre>
