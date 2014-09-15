@@ -109,22 +109,30 @@ opts_chunk$set(cache=TRUE,
                tidy.opts=list(keep.blank.line=FALSE, width.cutoff=60),
                fig.width=7,
                fig.height=5)</code></pre>
-<pre class="r"><code>if (!file.exists(&quot;./Data&quot;)) {
-    dir.create(&quot;./Data&quot;)
-    
-    trainingDataURL &lt;- 
-        &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
-
-    testDataURL &lt;-
-        &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
-    
-    download.file(trainingDataURL, destfile = &quot;./Data/trainingData.csv&quot;)
-    
-    download.file(testDataURL, destfile = &quot;./Data/testData.csv&quot;)
-}
-
+<p>The second step that I performed during the process of creating clean training and test data is loading these data sets into memory by calling the <code>loadExercsieData</code> function defined in the following code chunk. This function performs the following three operations:</p>
+<p>1.) Removing “_“’s from variable names<br />2.) Removing”.“’s from variable names<br />3.) Combining the <em>rawtimestamppart1</em> and <em>rawtimestamppart2</em> variables into a <a href="https://www.gnu.org/software/coreutils/manual/html_node/Seconds-since-the-Epoch.html">Unix time stamp</a></p>
+<pre class="r"><code>## ###########################################################################
+## DEFINE FUNCTIONS
+## ###########################################################################
 loadExerciseData &lt;- function(exerciseDataFile) {
 #------------------------------------------------------------------------
+# Loads a *.csv that contains training or testing data into memory.
+# The operations performed by this function include:
+# - Removing &quot;_&quot;'s from variable names
+# - Removing &quot;.&quot;'s from variable names
+# - Combing the rawtimestamppart1 &amp; rawtimestamppart2 variables into
+#   a timestamp variable that represents the measurement time in the
+#   Unix (i.e. &quot;seconds since the epoch&quot;) format
+#
+# Args:
+#   exerciseDataFile: String that stores the data file name
+#
+# Returns:
+#   exerciseData: Data frame that contains weight lifting data
+#
+# Constraints:
+#   This function assumes that the weight lifting data file is located
+#   in the following relative path: ./Data
 #------------------------------------------------------------------------
     exerciseData &lt;- read.csv(file = file.path(&quot;./Data&quot;,
                                               exerciseDataFile),
@@ -151,7 +159,9 @@ loadExerciseData &lt;- function(exerciseDataFile) {
 
     return(exerciseData)
 }
-
+## ###########################################################################
+## ANALYSIS
+## ###########################################################################
 trainingData &lt;- loadExerciseData(&quot;trainingData.csv&quot;)
 
 testData &lt;- loadExerciseData(&quot;testData.csv&quot;)</code></pre>
@@ -164,7 +174,22 @@ initializeDataWindowIndex &lt;- function(trainingData,
                                       maxLength = NA) {
 #------------------------------------------------------------------------
 # Initializes a compound list that contains the data frame row indices
-# corresponding to a specific data window
+# corresponding to all time series windows in a weight lifting data set 
+#
+# Required Args:
+#   trainingData: Data frame that stores the training data
+#
+# Optional Args:
+#   minLength: Integer that specifies the minimum number of data window 
+#              samples
+#
+#   maxLength: Integer that specifies the maximum number of data window 
+#              samples
+#
+# Returns:
+#   dataWindow: Compound list that contains the data frame row indices
+#               corresponding to all time series windows in a weight 
+#               lifting data set
 #------------------------------------------------------------------------
     weightLiftingClasse &lt;- unique(trainingData$classe)
     
@@ -210,6 +235,16 @@ initializeDataWindowIndex &lt;- function(trainingData,
 
 computeDataWindowCount &lt;- function(dataWindow) {
 #------------------------------------------------------------------------
+# Computes the number of time series windows for each measurement classe
+#
+# Args:
+#   dataWindow: Compound list that contains the data frame row indices
+#               corresponding to all time series windows in a weight 
+#               lifting data set
+#
+# Returns:
+#   dataWindowCount: Data frame that stores number of time series windows 
+#   for each measurement classe
 #------------------------------------------------------------------------
     dataWindowCount &lt;- data.frame()
     for (curClasse in names(dataWindow)) {
@@ -224,6 +259,17 @@ computeDataWindowCount &lt;- function(dataWindow) {
 }
 
 #------------------------------------------------------------------------
+# Computes the size of each time series window contained in a weight
+# lifting data set
+#
+# Args:
+#   dataWindow: Compound list that contains the data frame row indices
+#               corresponding to all time series windows in a weight 
+#               lifting data set
+#
+# Returns:
+#   dataWindowSize: Data frame that stores the size of each time series
+#   contained in a weight lifting data set
 #------------------------------------------------------------------------
 computeDataWindowSize &lt;- function(dataWindow) {
     dataWindowSize &lt;- data.frame()
@@ -241,6 +287,19 @@ computeDataWindowSize &lt;- function(dataWindow) {
 
 computeDataWindowSizeSummary &lt;- function(dataWindowSize) {
 #----------------------------------------------------------------------
+# Generates a data frame that stores a six number summary (i.e. 
+# minimum, 1st quantile, median, mean, 3rd quantile, and maximum)
+# of time series window for each weight lifting measurement classe
+#
+# Args:
+#   dataWindowSize: Data frame that stores the size of each time series
+#   contained in a weight lifting data set
+#
+# Returns:
+#   dataWindowSizeSummary: data frame that stores a six number summary 
+#   (i.e. minimum, 1st quantile, median, mean, 3rd quantile, and 
+#   maximum) of time series window for each weight lifting measurement 
+#   classe
 #----------------------------------------------------------------------
     dataWindowSizeSummary &lt;- data.frame()
     for (curClasse in unique(dataWindowSize$classe)) {
@@ -265,10 +324,22 @@ computeDataWindowSizeSummary &lt;- function(dataWindowSize) {
     
     return(dataWindowSizeSummary)
 }
-
 ## ###########################################################################
 ## ANALYSIS
 ## ###########################################################################
+if (!file.exists(&quot;./Data&quot;)) {
+    dir.create(&quot;./Data&quot;)
+    
+    trainingDataURL &lt;- 
+        &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
+
+    testDataURL &lt;-
+        &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
+    
+    download.file(trainingDataURL, destfile = &quot;./Data/trainingData.csv&quot;)    
+    download.file(testDataURL, destfile = &quot;./Data/testData.csv&quot;)
+}
+
 dataWindow &lt;- initializeDataWindowIndex(trainingData)</code></pre>
 <pre class="r"><code>## ###########################################################################
 ## DEFINE FUNCTIONS
