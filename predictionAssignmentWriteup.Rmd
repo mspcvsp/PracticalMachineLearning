@@ -85,25 +85,40 @@ opts_chunk$set(cache=TRUE,
                fig.width=7,
                fig.height=5)
 ```
-
-
+  
+The second step that I performed during the process of creating clean training
+and test data is loading these data sets into memory by calling the 
+`loadExercsieData` function defined in the following code chunk. This function
+performs the following three operations:  
+  
+1.) Removing "_"'s from variable names  
+2.) Removing "."'s from variable names  
+3.) Combining the *rawtimestamppart1* and *rawtimestamppart2* variables into a
+[Unix time stamp][7]  
+  
 ```{r loadAndCleanDataPart1}
-if (!file.exists("./Data")) {
-    dir.create("./Data")
-    
-    trainingDataURL <- 
-        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
-
-    testDataURL <-
-        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
-    
-    download.file(trainingDataURL, destfile = "./Data/trainingData.csv")
-    
-    download.file(testDataURL, destfile = "./Data/testData.csv")
-}
-
+## ###########################################################################
+## DEFINE FUNCTIONS
+## ###########################################################################
 loadExerciseData <- function(exerciseDataFile) {
 #------------------------------------------------------------------------
+# Loads a *.csv that contains training or testing data into memory.
+# The operations performed by this function include:
+# - Removing "_"'s from variable names
+# - Removing "."'s from variable names
+# - Combing the rawtimestamppart1 & rawtimestamppart2 variables into
+#   a timestamp variable that represents the measurement time in the
+#   Unix (i.e. "seconds since the epoch") format
+#
+# Args:
+#   exerciseDataFile: String that stores the data file name
+#
+# Returns:
+#   exerciseData: Data frame that contains weight lifting data
+#
+# Constraints:
+#   This function assumes that the weight lifting data file is located
+#   in the following relative path: ./Data
 #------------------------------------------------------------------------
     exerciseData <- read.csv(file = file.path("./Data",
                                               exerciseDataFile),
@@ -130,7 +145,9 @@ loadExerciseData <- function(exerciseDataFile) {
 
     return(exerciseData)
 }
-
+## ###########################################################################
+## ANALYSIS
+## ###########################################################################
 trainingData <- loadExerciseData("trainingData.csv")
 
 testData <- loadExerciseData("testData.csv")
@@ -148,7 +165,22 @@ initializeDataWindowIndex <- function(trainingData,
                                       maxLength = NA) {
 #------------------------------------------------------------------------
 # Initializes a compound list that contains the data frame row indices
-# corresponding to a specific data window
+# corresponding to all time series windows in a weight lifting data set 
+#
+# Required Args:
+#   trainingData: Data frame that stores the training data
+#
+# Optional Args:
+#   minLength: Integer that specifies the minimum number of data window 
+#              samples
+#
+#   maxLength: Integer that specifies the maximum number of data window 
+#              samples
+#
+# Returns:
+#   dataWindow: Compound list that contains the data frame row indices
+#               corresponding to all time series windows in a weight 
+#               lifting data set
 #------------------------------------------------------------------------
     weightLiftingClasse <- unique(trainingData$classe)
     
@@ -194,6 +226,16 @@ initializeDataWindowIndex <- function(trainingData,
 
 computeDataWindowCount <- function(dataWindow) {
 #------------------------------------------------------------------------
+# Computes the number of time series windows for each measurement classe
+#
+# Args:
+#   dataWindow: Compound list that contains the data frame row indices
+#               corresponding to all time series windows in a weight 
+#               lifting data set
+#
+# Returns:
+#   dataWindowCount: Data frame that stores number of time series windows 
+#   for each measurement classe
 #------------------------------------------------------------------------
     dataWindowCount <- data.frame()
     for (curClasse in names(dataWindow)) {
@@ -208,6 +250,17 @@ computeDataWindowCount <- function(dataWindow) {
 }
 
 #------------------------------------------------------------------------
+# Computes the size of each time series window contained in a weight
+# lifting data set
+#
+# Args:
+#   dataWindow: Compound list that contains the data frame row indices
+#               corresponding to all time series windows in a weight 
+#               lifting data set
+#
+# Returns:
+#   dataWindowSize: Data frame that stores the size of each time series
+#   contained in a weight lifting data set
 #------------------------------------------------------------------------
 computeDataWindowSize <- function(dataWindow) {
     dataWindowSize <- data.frame()
@@ -225,6 +278,19 @@ computeDataWindowSize <- function(dataWindow) {
 
 computeDataWindowSizeSummary <- function(dataWindowSize) {
 #----------------------------------------------------------------------
+# Generates a data frame that stores a six number summary (i.e. 
+# minimum, 1st quantile, median, mean, 3rd quantile, and maximum)
+# of time series window for each weight lifting measurement classe
+#
+# Args:
+#   dataWindowSize: Data frame that stores the size of each time series
+#   contained in a weight lifting data set
+#
+# Returns:
+#   dataWindowSizeSummary: data frame that stores a six number summary 
+#   (i.e. minimum, 1st quantile, median, mean, 3rd quantile, and 
+#   maximum) of time series window for each weight lifting measurement 
+#   classe
 #----------------------------------------------------------------------
     dataWindowSizeSummary <- data.frame()
     for (curClasse in unique(dataWindowSize$classe)) {
@@ -249,10 +315,22 @@ computeDataWindowSizeSummary <- function(dataWindowSize) {
     
     return(dataWindowSizeSummary)
 }
-
 ## ###########################################################################
 ## ANALYSIS
 ## ###########################################################################
+if (!file.exists("./Data")) {
+    dir.create("./Data")
+    
+    trainingDataURL <- 
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+
+    testDataURL <-
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+    
+    download.file(trainingDataURL, destfile = "./Data/trainingData.csv")    
+    download.file(testDataURL, destfile = "./Data/testData.csv")
+}
+
 dataWindow <- initializeDataWindowIndex(trainingData)
 ```
   
@@ -786,3 +864,4 @@ pml_write_files(predClasse)
 [4]: http://vimeo.com/33727555
 [5]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
 [6]: https://github.com/yihui/knitr/blob/master/inst/examples/knitr-minimal.Rmd
+[7]: https://www.gnu.org/software/coreutils/manual/html_node/Seconds-since-the-Epoch.html
