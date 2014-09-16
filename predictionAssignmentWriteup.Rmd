@@ -911,7 +911,16 @@ htmlTable(dataWindowSizeSummary,
           rowlabel="")
 ```
   
-</br>
+</br> Next, I remove the following variables:  
+  
+* *windowsizeregion*  
+* *windowsize*  
+* *datawindownumber*  
+  
+from the clean training data that are not required to train a predictor. My 
+rationale for this analysis approach is that it simplifies the formula input
+parameter for the [caret package][10].  
+  
 ```{r constrainDataWindowSizePart2}
 cleanTrainingData <- 
     cleanTrainingData[!colnames(cleanTrainingData) %in% c("windowsizeregion",
@@ -924,8 +933,16 @@ rownames(cleanTrainingData) <- NULL
 
 variableNames <- colnames(cleanTrainingData)
 ```
-
-```{r checkTestDataForNAVariables, results='asis'}
+  
+The final step that I performed to prepare the training and test data for 
+analysis was evaluating the percent of NA variables in the test data. The 
+results shown in table #6 suggest that each variable in the test data falls 
+into one of the following groups:  
+  
+  * 0% missing values
+  * 0.1%-100% missing values
+  
+```{r checkTestDataForNAVariablesPart1, results='asis'}
 percentTestDataNAVariables <- computePercentNAValues(testData)
 
 percentTestDataNAVariables$region <- 
@@ -938,7 +955,18 @@ htmlTable(percentTestDataNAValuesRegions,
           caption="Table #6: Test Data % NA Value Statistics",
           align=c("c","c"),
           rowlabel="",)
-
+```
+  
+<br> Therefore, in order to avoid an error when calling caret package `train`
+function, the following R code chunk:  
+  
+  1.) Removes test data variables that have at least one missing value
+  2.) Removes test variables that will not be processed in order to estimate  
+  the dumbbell exercise movement class  
+  3.) Removes training data variables that are not completed defined in the 
+  test data.  
+  
+```{r checkTestDataForNAVariablesPart2}
 validTestVariableIdx <- which(percentTestDataNAVariables$percentnavalues == 0)
 
 validTestVariables <- 
@@ -957,15 +985,13 @@ cleanTrainingData <-
                                 c(validTestVariables,"classe")]
 ```
 
-Number of variables: `r length(variableNames[!variableNames %in% c("classe")])`
+## Exploratory Data Analysis
 
-# Exploratory Data Analysis
-
-```{r exploratoryDataAnalysis}
+```{r exploratoryDataAnalysis, fig.width=10, fig.height=7}
 ggpairs(data=cleanTrainingData, columns=1:5, colour='classe')
 ```
 
-# Train Predictor
+## Train Predictor
 ```{r randomForestModel1}
 seedValue <- 33833
 set.seed(seedValue)
@@ -1074,6 +1100,11 @@ predClasse <- predict(randomForestModel2Fit,
 
 pml_write_files(predClasse)
 ```
+
+## Session info
+```{r sessionInfo}
+print(sessionInfo())
+```
 [1]: http://groupware.les.inf.puc-rio.br/har
 [2]: http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201
 [3]: https://www.coursera.org/course/predmachlearn
@@ -1083,3 +1114,4 @@ pml_write_files(predClasse)
 [7]: https://www.gnu.org/software/coreutils/manual/html_node/Seconds-since-the-Epoch.html
 [8]: http://www.inside-r.org/packages/cran/Hmisc/docs/cut2
 [9]: http://gforge.se/2014/01/fast-track-publishing-using-knitr-part-iv
+[10]: http://topepo.github.io/caret/training.html
