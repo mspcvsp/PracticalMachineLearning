@@ -880,6 +880,16 @@ ggplot(cleanTrainingData, aes(x=windowsize, colour=classe, fill=classe)) +
       facet_wrap(~classe) + 
       ggtitle("Figure #1: Initial Data Window Size Statistics")
 ```
+  
+The purpose of the following R software is to first segment the clean training
+data based on time series window size. The second operation performed by this
+R software is generating a visualization of the refined time series window size.
+in figure #2. My analysis of these results is that segmentating the clean 
+training data based on time series window size balances the distribution of 
+time series window sizes across all five different dumbbell exercise motion 
+classes. The third operation performed by this R software is computing a six 
+number summary of the resulting time series window size that is consistent with 
+the results shown in figure #2.
 
 ```{r constrainDataWindowSizePart1, results='asis'}
 cleanTrainingData <- 
