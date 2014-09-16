@@ -48,7 +48,7 @@ that I followed to prepare (i.e. clean) the training and test data for
 analysis.  
 
 The first step required to generate clean training and test data is setting up
-the R programming environment that illustrated in the following code chunk.
+the R programming environment that is illustrated in the following code chunk.
 This section of R code begins with [verifying that the required R packages][5] 
 are installed. Next, this software loads the required R packages prior to 
 [setting global code chunk options][6].  
@@ -170,11 +170,11 @@ testData <- loadExerciseData("testData.csv")
   
 The number of rows in the training and test data is `r nrow(trainingData)` and
 `r nrow(testData)`, respectively.  The third step that I performed to prepare
-this data for analysis is transforming it into a [tidy data][4]. The key
+this data for analysis is transforming it into [tidy data][4]. The key
 characteristic of this data transform is that the data set variables are 
 contained a data frame columns and there is one observation per data frame row.
   
-  The purpose of `initializeDataWindowIndex()`, which is the first R function 
+The purpose of `initializeDataWindowIndex()`, which is the first R function 
 defined in the following code chunk, is to aggregate the time series data 
 associated a specific individual and weight lifting motion class. Next, the
 second function defined in the following section of R software, 
@@ -750,7 +750,7 @@ htmlTable(excluedVariables,
 ```
   
 </br> The purpose of the following R code chunk is to implement this analysis
-approach prior to evaluating the number of time series sampled associated with 
+approach prior to evaluating the number of time series samples associated with 
 each weight lifting exercise measurement.  
 ```{r removeNAVariables2}
 cleanTrainingData <- 
@@ -832,7 +832,7 @@ htmlTable(dataWindowSizeSummary,
     
 </br> Therefore, I evaluate the resulting statistics of the further segmenting
 the clean training data based on applying these thresholds. The following R
-code implements this procedure via the following operations:  
+code implements this procedure via these operations:  
   
   * Aggreage the *windowsize* variable into four regions using the [`cut2`][8] 
   function
@@ -869,8 +869,8 @@ percentExcludedData <-
 
 My analysis of the data window size statistics computed by the above R code 
 chunk suggest that the percent of training data excluded based on data 
-window `r percentExcludedData` %. The initial data window statistics shown
-in figure #1 also illustrate the asymmetric data window size statistics 
+window size is `r percentExcludedData` %. The initial data window statistics 
+shown in figure #1 also illustrate the asymmetric data window size statistics 
 summarized in table #4.
 
 ```{r evaluateDataWindowSizePart4}
@@ -883,8 +883,8 @@ ggplot(cleanTrainingData, aes(x=windowsize, colour=classe, fill=classe)) +
   
 The purpose of the following R software is to first segment the clean training
 data based on time series window size. The second operation performed by this
-R software is generating a visualization of the refined time series window size.
-in figure #2. My analysis of these results is that segmenting the clean 
+R software is generating a visualization of the refined time series window size
+shown in figure #2. My analysis of these results is that segmenting the clean 
 training data based on time series window size balances the distribution of 
 time series window sizes across all five different dumbbell exercise motion 
 classes. The third operation performed by this R software is computing a six 
@@ -960,8 +960,8 @@ htmlTable(percentTestDataNAValuesRegions,
 <br> Therefore, in order to avoid an error when calling caret package `train`
 function, the following R code chunk:  
   
-  1.) Removes test data variables that have at least one missing value
-  2.) Removes test variables that will not be processed in order to estimate  
+  1.) Removes test data variables that have at least one missing value  
+  2.) Removes test variables that will not be processed in order to estimate 
   the dumbbell exercise movement class  
   3.) Removes training data variables that are not completed defined in the 
   test data.  
@@ -986,12 +986,12 @@ cleanTrainingData <-
 ```
 
 ## Exploratory Data Analysis
-Figure #7 illustrates an exploratory data analysis plot of the 1st five variables
-(out of `nrow(cleanTraininData)` generated using the [`GGally package`][11]. 
-The conclusion that I drew based on analysis of this plot is that it suggests the relationship between the variables contained in the clean training data is 
-complex. Therefore, a prediction approach that provides a measure of [*variable
-importance*][12] is the `randomForests` model described in the following 
-section.
+Figure #7 illustrates an exploratory data analysis plot of the 1st five 
+variables (out of `r nrow(cleanTrainingData)`) that I generated using the 
+[`GGally package`][11]. The conclusion that I drew based on an analysis of this 
+plot is that it suggests the relationship between the variables contained in the 
+clean training data is complex. Therefore, a prediction approach that provides a measure of [*variable importance*][12] is the `randomForests` model described in
+the following section.
   
 ```{r exploratoryDataAnalysis, fig.width=10, fig.height=7}
 ggpairs(data=cleanTrainingData,
@@ -1003,7 +1003,7 @@ ggpairs(data=cleanTrainingData,
 ## Train Predictor
 The fist predictor that I train using the following R software operates on all
 of the `nrow(cleanTrainingData)` clean training data variable. A defining 
-characteristic of the *randomForest* model is that model fit returned by
+characteristic of the *randomForest* model is that the model fit returned by
 the caret package `train` function includes an estimate of the out-of-sample
 error.
 ```{r randomForestModel1}
@@ -1018,7 +1018,7 @@ print(randomForestModel1Fit$finalModel)
 
 numModelErrorRows1 <- nrow(randomForestModel1Fit$finalModel$err.rate)
 outOfSampleErrorRate1 <- 
-    round(randomForestModel1Fit$finalModel$err.rate[numModelErrorRows,1],
+    round(randomForestModel1Fit$finalModel$err.rate[numModelErrorRows1,1],
           digits=3)*100
 
 variableImportanace <- varImp(randomForestModel1Fit$finalModel)
@@ -1069,7 +1069,7 @@ randomForestModel2Fit <- train(classe ~ .,
 
 numModelErrorRows2 <- nrow(randomForestModel2Fit$finalModel$err.rate)
 outOfSampleErrorRate2 <- 
-    round(randomForestModel2Fit$finalModel$err.rate[numModelErrorRows,1],
+    round(randomForestModel2Fit$finalModel$err.rate[numModelErrorRows2,1],
           digits=3)*100
 
 print(randomForestModel2Fit$finalModel)
@@ -1094,7 +1094,7 @@ randomForestModel3Fit <- train(classe ~ .,
 
 numModelErrorRows3 <- nrow(randomForestModel3Fit$finalModel$err.rate)
 outOfSampleErrorRate3 <- 
-    round(randomForestModel3Fit$finalModel$err.rate[numModelErrorRows,1],
+    round(randomForestModel3Fit$finalModel$err.rate[numModelErrorRows3,1],
           digits=3)*100
 
 print(randomForestModel3Fit$finalModel)
@@ -1119,7 +1119,7 @@ randomForestModel4Fit <- train(classe ~ .,
 
 numModelErrorRows4 <- nrow(randomForestModel4Fit$finalModel$err.rate)
 outOfSampleErrorRate4 <- 
-    round(randomForestModel4Fit$finalModel$err.rate[numModelErrorRows,1],
+    round(randomForestModel4Fit$finalModel$err.rate[numModelErrorRows4,1],
           digits=3)*100
 
 print(randomForestModel4Fit$finalModel)
