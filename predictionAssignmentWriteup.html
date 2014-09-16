@@ -353,13 +353,20 @@ computeDataWindowSizeSummary &lt;- function(dataWindowSize) {
 ## ANALYSIS
 ## ###########################################################################
 dataWindow &lt;- initializeDataWindowIndex(trainingData)</code></pre>
-<p>For example, the implementation of the following R functions:</p>
+<p>For example, the implementation of these R functions:</p>
 <ul>
 <li><code>processNumericVariables()</code><br /></li>
 <li><code>processCharacterVariables()</code></li>
 <li><code>initializeMeasurements()</code></li>
 </ul>
-<p>are based on an initial exploratory data analysis during which I learned that this weight lifting data set contains scalar and time series measurements.</p>
+<p>defined in the following code chunk are based on an initial exploratory data analysis during which I learned that this weight lifting data set contains scalar and time series measurements. The first two of these functions are called by <code>initializeMeasurements()</code>, which returns a compound list that contains:</p>
+<ul>
+<li><em>cleanTrainingData</em>: Data frame where each row contains the measurements associated with a specific individual and dumbbell exercise motion<br /></li>
+<li><em>cleanDataWindow</em>: Compound list that contains the data frame row indices corresponding the clean training data measurements<br /></li>
+<li><em>ambiguousClasseDataWindow</em>: Compound list that contains the data frame row indices corresponding the time series windows where the dumbbell exercise motion class was ambiguous</li>
+<li><em>characterVariables</em>: Character vector that stores the name of scalar variables associated with a specific individual and dumbbell exercise motion<br /></li>
+<li><em>numericVariables</em>: Character vector that stores the name of numeric time series variables associated with a specific individual and dumbbell exercise motion</li>
+</ul>
 <pre class="r"><code>## ###########################################################################
 ## DEFINE FUNCTIONS
 ## ###########################################################################

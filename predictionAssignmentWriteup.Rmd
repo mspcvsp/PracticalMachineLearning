@@ -358,14 +358,29 @@ computeDataWindowSizeSummary <- function(dataWindowSize) {
 dataWindow <- initializeDataWindowIndex(trainingData)
 ```
   
-For example, the implementation of the following R functions:  
+For example, the implementation of these R functions:  
     
 * `processNumericVariables()`  
 * `processCharacterVariables()`
 * `initializeMeasurements()`
 
-are based on an initial exploratory data analysis during which I learned that
-this weight lifting data set contains scalar and time series measurements.  
+defined in the following code chunk are based on an initial exploratory data 
+analysis during which I learned that this weight lifting data set contains 
+scalar and time series measurements. The first two of these functions are 
+called by `initializeMeasurements()`, which returns a compound list that
+contains:  
+  
+* *cleanTrainingData*: Data frame where each row contains the measurements 
+associated with a specific individual and dumbbell exercise motion  
+* *cleanDataWindow*: Compound list that contains the data frame row indices 
+corresponding the clean training data measurements  
+* *ambiguousClasseDataWindow*: Compound list that contains the data frame row 
+indices corresponding the time series windows where the dumbbell exercise 
+motion class was ambiguous
+* *characterVariables*: Character vector that stores the name of scalar variables 
+associated with a specific individual and dumbbell exercise motion  
+* *numericVariables*: Character vector that stores the name of numeric time series
+variables associated with a specific individual and dumbbell exercise motion  
   
 ```{r loadAndCleanDataPart2, results='asis'}
 ## ###########################################################################
