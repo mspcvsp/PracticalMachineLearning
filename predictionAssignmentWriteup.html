@@ -134,6 +134,21 @@ loadExerciseData &lt;- function(exerciseDataFile) {
 #   This function assumes that the weight lifting data file is located
 #   in the following relative path: ./Data
 #------------------------------------------------------------------------
+    if (!file.exists(&quot;./Data&quot;)) {
+        dir.create(&quot;./Data&quot;)
+        
+        trainingDataURL &lt;- 
+            paste0(&quot;https://d396qusza40orc.cloudfront.net/predmachlearn&quot;,
+                   &quot;/pml-training.csv&quot;)
+    
+        testDataURL &lt;-
+            paste0(&quot;https://d396qusza40orc.cloudfront.net/predmachlearn&quot;,
+                   &quot;/pml-testing.csv&quot;)
+        
+        download.file(trainingDataURL, destfile = &quot;./Data/trainingData.csv&quot;)    
+        download.file(testDataURL, destfile = &quot;./Data/testData.csv&quot;)
+    }
+
     exerciseData &lt;- read.csv(file = file.path(&quot;./Data&quot;,
                                               exerciseDataFile),
                              header=TRUE,
@@ -165,7 +180,17 @@ loadExerciseData &lt;- function(exerciseDataFile) {
 trainingData &lt;- loadExerciseData(&quot;trainingData.csv&quot;)
 
 testData &lt;- loadExerciseData(&quot;testData.csv&quot;)</code></pre>
-<p>Number of training data rows: 19622 Number of test data rows: 20</p>
+<p>The number of rows in the training and test data is 19622 and 20, respectively. The third step that I performed to prepare this data for analysis is transforming it into a <a href="http://vimeo.com/33727555">tidy data</a>. The key characteristic of this data transform is that the data set variables are contained a data frame columns and there is one observation per data frame row.</p>
+<p>The purpose of <code>initializeDataWindowIndex()</code>, which is the first R function defined in the following code chunk, is to aggregate the time series data associated a specific individual and weight lifting motion class. Next, the second function defined in the following section of R software, <code>computeDataWindowCount()</code>, computes the number of time series window for each dumbbell exercise motion. Simiarily, <code>computeDataWindowSize()</code> computes the size of each time series associated with a weight lifting motion class. Finally, <code>computeDataWindowSizeSummary()</code> computes a six-number summary:</p>
+<ul>
+<li>Minimum value<br /></li>
+<li>1st quantile<br /></li>
+<li>Median<br /></li>
+<li>Mean<br /></li>
+<li>3rd quantile<br /></li>
+<li>Maximum</li>
+</ul>
+<p>of the data window size for each dumbbell exercise motion. The rationale for writing these functions is that they simplified an initial exploratory analysis of the data.</p>
 <pre class="r"><code>## ###########################################################################
 ## DEFINE FUNCTIONS
 ## ###########################################################################
@@ -327,26 +352,37 @@ computeDataWindowSizeSummary &lt;- function(dataWindowSize) {
 ## ###########################################################################
 ## ANALYSIS
 ## ###########################################################################
-if (!file.exists(&quot;./Data&quot;)) {
-    dir.create(&quot;./Data&quot;)
-    
-    trainingDataURL &lt;- 
-        &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
-
-    testDataURL &lt;-
-        &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
-    
-    download.file(trainingDataURL, destfile = &quot;./Data/trainingData.csv&quot;)    
-    download.file(testDataURL, destfile = &quot;./Data/testData.csv&quot;)
-}
-
 dataWindow &lt;- initializeDataWindowIndex(trainingData)</code></pre>
+<p>For example, the implementation of the following R functions:</p>
+<ul>
+<li><code>processNumericVariables()</code><br /></li>
+<li><code>processCharacterVariables()</code></li>
+<li><code>initializeMeasurements()</code></li>
+</ul>
+<p>are based on an initial exploratory data analysis during which I learned that this weight lifting data set contains scalar and time series measurements.</p>
 <pre class="r"><code>## ###########################################################################
 ## DEFINE FUNCTIONS
 ## ###########################################################################
 processNumericVariables &lt;- function(curDataWindowIn,
                                     numericVariables) {
-#-------------------------------------------------------
+#----------------------------------------------------------------------
+# Computes the mean of each time series numeric variable associated
+# with a specific individual and dumbbell exercise motion class.
+#
+# ArgS:
+#   curDataWindowIn: Data frame that contains the scalar and numeric 
+#                    time series measurements associated with a 
+#                    specific individual and dumbbell exercise motion 
+#                    class.
+#
+#   numericVariables: Character vector that stores the names of time 
+#                     series variables
+#
+# Returns:
+#   curDataWindow: 1 row data frame that contains the mean of each time
+#                  series numeric variable associated with a specific 
+#                  individual and dumbbell exercise motion class.
+#----------------------------------------------------------------------
     numNumericVariables &lt;- length(numericVariables)
     
     for (i in seq_len(numNumericVariables)) {
@@ -376,6 +412,24 @@ processNumericVariables &lt;- function(curDataWindowIn,
 
 processCharacterVariables &lt;- function(curDataWindowIn,
                                       characterVariables) {
+#----------------------------------------------------------------------
+# Converts a scalar measurement associated with a specific individual 
+# and dumbbell exercise motion class to a numeric value.
+#
+# ArgS:
+#   curDataWindowIn: Data frame that contains the scalar and numeric 
+#                    time series measurements associated with a 
+#                    specific individual and dumbbell exercise motion 
+#                    class.
+#
+#   characterVariables: Character vector that stores the names of scalar 
+#                       variables
+#
+# Returns:
+#   curDataWindow: 1 row data frame that contains the numeric value of
+#                  each sclar variable associated with a specific 
+#                  individual and dumbbell exercise motion class.
+#----------------------------------------------------------------------
     numCharacterVariables &lt;- length(characterVariables)
     
     #---------------------------------------------------------
@@ -408,6 +462,42 @@ processCharacterVariables &lt;- function(curDataWindowIn,
 
 initializeMeasurements &lt;- function(trainingData,
                                    dataWindow) {
+#----------------------------------------------------------------------
+# Initializes a compound list that stores the following attributes:
+#
+# - cleanTrainingData: Data frame where each row contains the
+#                      measurements associated with a specific 
+#                      individual and dumbbell exercise motion
+#
+# - cleanDataWindow: Compound list that contains the data frame row 
+#                    indices corresponding the clean training data 
+#                    measurements
+#
+# - ambiguousClasseDataWindow: Compound list that contains the data 
+#                              frame row indices corresponding the 
+#                              time series windows where the dumbbell
+#                              exercise motion class was ambiguous
+#
+# - characterVariables: Character vector that stores the name of
+#                       scalar variables associated with a specific
+#                       individual and dumbbell exercise motion
+#
+# - numericVariables: Character vector that stores the name of
+#                     numeric time series variables associated with 
+#                     a specific individual and dumbbell exercise 
+#                     motion
+#           
+# Args:
+#   trainingData: Data frame that stores the raw training data
+#
+#   dataWindow: Compound list that contains the data frame row indices
+#               corresponding to all time series windows in a weight 
+#               lifting data set
+#
+# Returns:
+#   Compound list that stores clean training data and data cleaning 
+#   debug parameters
+#----------------------------------------------------------------------
     cleanData &lt;- list()
     ambiguousClasseDataWindow &lt;- list()
     incompleteCaseDataWindow &lt;- list()
@@ -480,6 +570,17 @@ initializeMeasurements &lt;- function(trainingData,
 }
 
 computePercentNAValues &lt;- function(predictionData) {
+#----------------------------------------------------------------------
+# Determines the percent of NA values for each variable in a training
+# or test dat set.
+#
+# Args:
+#   predictionData: Data frame that contains training or test data
+#
+# Returns:
+#   percentNAValues: Data frame that describes percent of NA values 
+#   for each variable in a training or test dat set.
+#----------------------------------------------------------------------
     variableNames &lt;- colnames(predictionData)
     
     percentNAValues &lt;- vector('numeric',length(variableNames))
@@ -497,6 +598,21 @@ computePercentNAValues &lt;- function(predictionData) {
 }
 
 computeNAValueStatistics &lt;- function(percentNAValues) {
+#----------------------------------------------------------------------
+# Computes the frequency of each % NA values region, which is a factor
+# variable generated by the cut2() function applied to the continuous
+# percentnavalues variable
+#
+# Args:
+#   percentNAValues: Data frame that describes percent of NA values 
+#   for each variable in a training or test dat set.
+#
+# Returns:
+#   percentNAValuesRegions: Data frame that describes the frequency of 
+#   each % NA values region, which is a factor variable generated by 
+#   the cut2() function applied to the continuous percentnavalues 
+#   variable.
+#----------------------------------------------------------------------
     percentNAValuesRegions &lt;- as.data.frame(table(percentNAValues$region))
     
     colnames(percentNAValuesRegions) &lt;- c(&quot;region&quot;,
@@ -507,7 +623,6 @@ computeNAValueStatistics &lt;- function(percentNAValues) {
     
     return(percentNAValuesRegions)
 }
-
 ## ###########################################################################
 ## ANALYSIS
 ## ###########################################################################

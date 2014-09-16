@@ -120,6 +120,21 @@ loadExerciseData <- function(exerciseDataFile) {
 #   This function assumes that the weight lifting data file is located
 #   in the following relative path: ./Data
 #------------------------------------------------------------------------
+    if (!file.exists("./Data")) {
+        dir.create("./Data")
+        
+        trainingDataURL <- 
+            paste0("https://d396qusza40orc.cloudfront.net/predmachlearn",
+                   "/pml-training.csv")
+    
+        testDataURL <-
+            paste0("https://d396qusza40orc.cloudfront.net/predmachlearn",
+                   "/pml-testing.csv")
+        
+        download.file(trainingDataURL, destfile = "./Data/trainingData.csv")    
+        download.file(testDataURL, destfile = "./Data/testData.csv")
+    }
+
     exerciseData <- read.csv(file = file.path("./Data",
                                               exerciseDataFile),
                              header=TRUE,
@@ -152,10 +167,32 @@ trainingData <- loadExerciseData("trainingData.csv")
 
 testData <- loadExerciseData("testData.csv")
 ```
+  
+The number of rows in the training and test data is `r nrow(trainingData)` and
+`r nrow(testData)`, respectively.  The third step that I performed to prepare
+this data for analysis is transforming it into a [tidy data][4]. The key
+characteristic of this data transform is that the data set variables are 
+contained a data frame columns and there is one observation per data frame row.
+  
+  The purpose of `initializeDataWindowIndex()`, which is the first R function 
+defined in the following code chunk, is to aggregate the time series data 
+associated a specific individual and weight lifting motion class. Next, the
+second function defined in the following section of R software, 
+`computeDataWindowCount()`, computes the number of time series window for each
+dumbbell exercise motion. Simiarily, `computeDataWindowSize()` computes the 
+size of each time series associated with a weight lifting motion class. Finally,
+`computeDataWindowSizeSummary()` computes a six-number summary:  
+  
+* Minimum value  
+* 1st quantile  
+* Median  
+* Mean  
+* 3rd quantile  
+* Maximum  
 
-Number of training data rows: `r nrow(trainingData)`
-Number of test data rows: `r nrow(testData)`
-
+of the data window size for each dumbbell exercise motion. The rationale for
+writing these functions is that they simplified an initial exploratory analysis
+of the data.  
 ```{r initializeDataWindowDescription, results='asis'}
 ## ###########################################################################
 ## DEFINE FUNCTIONS
@@ -318,21 +355,17 @@ computeDataWindowSizeSummary <- function(dataWindowSize) {
 ## ###########################################################################
 ## ANALYSIS
 ## ###########################################################################
-if (!file.exists("./Data")) {
-    dir.create("./Data")
-    
-    trainingDataURL <- 
-        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
-
-    testDataURL <-
-        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
-    
-    download.file(trainingDataURL, destfile = "./Data/trainingData.csv")    
-    download.file(testDataURL, destfile = "./Data/testData.csv")
-}
-
 dataWindow <- initializeDataWindowIndex(trainingData)
 ```
+  
+For example, the implementation of the following R functions:  
+    
+* `processNumericVariables()`  
+* `processCharacterVariables()`
+* `initializeMeasurements()`
+
+are based on an initial exploratory data analysis during which I learned that
+this weight lifting data set contains scalar and time series measurements.  
   
 ```{r loadAndCleanDataPart2, results='asis'}
 ## ###########################################################################
@@ -340,7 +373,24 @@ dataWindow <- initializeDataWindowIndex(trainingData)
 ## ###########################################################################
 processNumericVariables <- function(curDataWindowIn,
                                     numericVariables) {
-#-------------------------------------------------------
+#----------------------------------------------------------------------
+# Computes the mean of each time series numeric variable associated
+# with a specific individual and dumbbell exercise motion class.
+#
+# ArgS:
+#   curDataWindowIn: Data frame that contains the scalar and numeric 
+#                    time series measurements associated with a 
+#                    specific individual and dumbbell exercise motion 
+#                    class.
+#
+#   numericVariables: Character vector that stores the names of time 
+#                     series variables
+#
+# Returns:
+#   curDataWindow: 1 row data frame that contains the mean of each time
+#                  series numeric variable associated with a specific 
+#                  individual and dumbbell exercise motion class.
+#----------------------------------------------------------------------
     numNumericVariables <- length(numericVariables)
     
     for (i in seq_len(numNumericVariables)) {
@@ -370,6 +420,24 @@ processNumericVariables <- function(curDataWindowIn,
 
 processCharacterVariables <- function(curDataWindowIn,
                                       characterVariables) {
+#----------------------------------------------------------------------
+# Converts a scalar measurement associated with a specific individual 
+# and dumbbell exercise motion class to a numeric value.
+#
+# ArgS:
+#   curDataWindowIn: Data frame that contains the scalar and numeric 
+#                    time series measurements associated with a 
+#                    specific individual and dumbbell exercise motion 
+#                    class.
+#
+#   characterVariables: Character vector that stores the names of scalar 
+#                       variables
+#
+# Returns:
+#   curDataWindow: 1 row data frame that contains the numeric value of
+#                  each sclar variable associated with a specific 
+#                  individual and dumbbell exercise motion class.
+#----------------------------------------------------------------------
     numCharacterVariables <- length(characterVariables)
     
     #---------------------------------------------------------
@@ -402,6 +470,42 @@ processCharacterVariables <- function(curDataWindowIn,
 
 initializeMeasurements <- function(trainingData,
                                    dataWindow) {
+#----------------------------------------------------------------------
+# Initializes a compound list that stores the following attributes:
+#
+# - cleanTrainingData: Data frame where each row contains the
+#                      measurements associated with a specific 
+#                      individual and dumbbell exercise motion
+#
+# - cleanDataWindow: Compound list that contains the data frame row 
+#                    indices corresponding the clean training data 
+#                    measurements
+#
+# - ambiguousClasseDataWindow: Compound list that contains the data 
+#                              frame row indices corresponding the 
+#                              time series windows where the dumbbell
+#                              exercise motion class was ambiguous
+#
+# - characterVariables: Character vector that stores the name of
+#                       scalar variables associated with a specific
+#                       individual and dumbbell exercise motion
+#
+# - numericVariables: Character vector that stores the name of
+#                     numeric time series variables associated with 
+#                     a specific individual and dumbbell exercise 
+#                     motion
+#           
+# Args:
+#   trainingData: Data frame that stores the raw training data
+#
+#   dataWindow: Compound list that contains the data frame row indices
+#               corresponding to all time series windows in a weight 
+#               lifting data set
+#
+# Returns:
+#   Compound list that stores clean training data and data cleaning 
+#   debug parameters
+#----------------------------------------------------------------------
     cleanData <- list()
     ambiguousClasseDataWindow <- list()
     incompleteCaseDataWindow <- list()
@@ -474,6 +578,17 @@ initializeMeasurements <- function(trainingData,
 }
 
 computePercentNAValues <- function(predictionData) {
+#----------------------------------------------------------------------
+# Determines the percent of NA values for each variable in a training
+# or test dat set.
+#
+# Args:
+#   predictionData: Data frame that contains training or test data
+#
+# Returns:
+#   percentNAValues: Data frame that describes percent of NA values 
+#   for each variable in a training or test dat set.
+#----------------------------------------------------------------------
     variableNames <- colnames(predictionData)
     
     percentNAValues <- vector('numeric',length(variableNames))
@@ -491,6 +606,21 @@ computePercentNAValues <- function(predictionData) {
 }
 
 computeNAValueStatistics <- function(percentNAValues) {
+#----------------------------------------------------------------------
+# Computes the frequency of each % NA values region, which is a factor
+# variable generated by the cut2() function applied to the continuous
+# percentnavalues variable
+#
+# Args:
+#   percentNAValues: Data frame that describes percent of NA values 
+#   for each variable in a training or test dat set.
+#
+# Returns:
+#   percentNAValuesRegions: Data frame that describes the frequency of 
+#   each % NA values region, which is a factor variable generated by 
+#   the cut2() function applied to the continuous percentnavalues 
+#   variable.
+#----------------------------------------------------------------------
     percentNAValuesRegions <- as.data.frame(table(percentNAValues$region))
     
     colnames(percentNAValuesRegions) <- c("region",
@@ -501,7 +631,6 @@ computeNAValueStatistics <- function(percentNAValues) {
     
     return(percentNAValuesRegions)
 }
-
 ## ###########################################################################
 ## ANALYSIS
 ## ###########################################################################
