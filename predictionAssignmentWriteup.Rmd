@@ -382,6 +382,10 @@ associated with a specific individual and dumbbell exercise motion
 * *numericVariables*: Character vector that stores the name of numeric time series
 variables associated with a specific individual and dumbbell exercise motion  
   
+This code chunk also contains two functions (i.e. `computePercentNAValues` and
+`computeNAValueStatistics` that I used to evaluate the percent of NA values
+contained in the weight lifting exercise training data set.  
+    
 ```{r loadAndCleanDataPart2, results='asis'}
 ## ###########################################################################
 ## DEFINE FUNCTIONS
@@ -670,8 +674,16 @@ numericVariables <- cleanData[[5]]
 rm(cleanData)
 ```
 
-Character variable: `r characterVariables[1]` 
-Numeric variable: `r numericVariables[1]`
+Once the initialization of the clean training data is complete, the following R
+code chunk illustrates that I evaluated the percentage of missing values for
+each variable by performing the following procedure:  
+  
+1.) Compute the percent of variable NA values  
+2.) Apply the [`cut2`][8] function to divide the percentnavalues into five 
+regions  
+3.) Compute the frequency of each percentnavalues variable region  
+4.) Display the variable NA value statistics using the [`htmlTable`][9] 
+function.  
 
 ```{r loadAndCleanDataPart3, results='asis'}
 percentNAValues <- computePercentNAValues(cleanTrainingData)
@@ -687,7 +699,9 @@ htmlTable(percentNAValuesRegions,
           rowlabel="",)
 ```
   
-  
+</br>The results shown in this table suggest that most of the clean training 
+data variables have a low number of (i.e. less than 5%) missing values. 
+   
 ```{r loadAndCleanDataPart4}
 percentVariablesExcluded = 
     100 * sum(percentNAValuesRegions[percentNAValuesRegions$region %in%
@@ -697,15 +711,28 @@ percentVariablesExcluded =
           sum(percentNAValuesRegions$frequency)
 
 percentVariablesExcluded <- round(percentVariablesExcluded, digits=1)
-
-ggplot(percentNAValues, aes(x=percentnavalues,fill=region, colour=region)) + 
-    scale_color_brewer(palette="Dark2") + scale_fill_brewer(palette="Dark2") +
-    geom_density() + xlab("% of NA Values") + ylab("Density") + 
-    ggtitle("NA values Analysis") + theme_gray(base_size = 14)
 ```
 
-% of variables removed due to NA values: `r percentVariablesExcluded`
+The percentage of variables removed due to NA values based on this threshold
+is `r percentVariablesExcluded`. Next, the following code chunk segments
+the clean training data based on this threshold. My rationale for applying this 
+threshold is that dumbbell exercise motion measurements containing a large 
+number of missing values may bias the predictor training. The following R
+software also generates a [`htmlTable`][9] that describes the nineteen 
+measurements removed due a high percentage (i.e. >= 5%) of missing values. This
+R code chunk also removes the following variables:  
+  
+  * *cusername*  
+  * *cvtdtimestamp*  
+  * *newwindow*  
+  * *numwindow*  
+  * *timestamp*  
 
+that are not required to train a predictor. My rationale for this additional
+segmentation of the clean training data is that these variables do not provide
+insight regarding the type of dumbbell exercise motion performed by an 
+individual.  
+  
 ```{r removeNAVariables, results='asis'}
 excluedVariables <- 
     percentNAValues[which(percentNAValues$percentnavalues >= 5.0),]
@@ -737,6 +764,7 @@ cleanTrainingData <-
                                    "timestamp")]
 ```
 
+  
 ```{r evaluateDataWindowSizePart1, results='asis'}
 ## ###########################################################################
 ## DEFINE FUNCTIONS
@@ -1009,3 +1037,5 @@ pml_write_files(predClasse)
 [5]: http://stackoverflow.com/questions/9341635/how-can-i-check-for-installed-r-packages-before-running-install-packages
 [6]: https://github.com/yihui/knitr/blob/master/inst/examples/knitr-minimal.Rmd
 [7]: https://www.gnu.org/software/coreutils/manual/html_node/Seconds-since-the-Epoch.html
+[8]: http://www.inside-r.org/packages/cran/Hmisc/docs/cut2
+[9]: http://gforge.se/2014/01/fast-track-publishing-using-knitr-part-iv
