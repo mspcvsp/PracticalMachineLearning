@@ -1,6 +1,6 @@
 PracticalMachineLearning
 ========================
 
-[Course Project](http://datasciencespm.github.io/PracticalMachineLearning/) for JHU Practical Machine Learning Coursera Class
+[Course Project](http://datasciencespm.github.io/PracticalMachineLearning/) for the JHU Practical Machine Learning Coursera Class
 
 
